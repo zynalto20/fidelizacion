@@ -6,7 +6,7 @@ import { supabase } from '../../lib/supabase'
 
 export default function TarjetaRestaurante() {
   const { slug } = useParams()
-  const [restaurante, setRestaurante] = useState(null)
+ const [restaurante, setRestaurante] = useState<any>(null)
   const [sellos, setSellos] = useState(3)
 
   useEffect(() => {

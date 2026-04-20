@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from './lib/supabase'
 
 export default function Home() {
-  const [restaurante, setRestaurante] = useState(null)
+  const [restaurante, setRestaurante] = useState<any>(null)
   const [sellos, setSellos] = useState(3)
 
   useEffect(() => {
