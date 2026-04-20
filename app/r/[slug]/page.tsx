@@ -81,7 +81,7 @@ export default function TarjetaRestaurante() {
   <p className="text-zinc-500 text-xs tracking-widest uppercase mb-4">Escanea para compartir</p>
   <div className="bg-white p-4 rounded-2xl">
     <QRCode
-      value={`http://localhost:3000/r/${slug}`}
+      value={`https://fidelizacion-d87i5et1y-zynalto20s-projects.vercel.app/r/${slug}`}
       size={160}
       bgColor="#ffffff"
       fgColor="#000000"
