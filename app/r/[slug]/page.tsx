@@ -3,27 +3,68 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { QRCodeSVG as QRCode } from 'qrcode.react'
 import { supabase } from '../../lib/supabase'
+import Login from './login'
 
 export default function TarjetaRestaurante() {
   const { slug } = useParams()
   const [restaurante, setRestaurante] = useState<any>(null)
-  const [sellos, setSellos] = useState(3)
+  const [sesion, setSesion] = useState<any>(null)
+  const [sellos, setSellos] = useState(0)
+  const [cargando, setCargando] = useState(true)
 
   useEffect(() => {
-    async function cargarRestaurante() {
+    async function init() {
+      const { data: { session } } = await supabase.auth.getSession()
+      setSesion(session)
+
       const { data } = await supabase
         .from('restaurants')
         .select('*')
         .eq('slug', slug)
         .single()
       setRestaurante(data)
+      setCargando(false)
+
+      if (session && data) {
+        const { data: card } = await supabase
+          .from('loyalty_cards')
+          .select('*')
+          .eq('restaurant_id', data.id)
+          .eq('customer_id', session.user.id)
+          .single()
+
+        if (card) {
+          setSellos(card.sellos_actuales)
+        } else {
+          await supabase.from('loyalty_cards').insert({
+            restaurant_id: data.id,
+            customer_id: session.user.id,
+            sellos_actuales: 0
+          })
+        }
+      }
     }
-    cargarRestaurante()
+    init()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSesion(session)
+      if (session) init()
+    })
+
+    return () => subscription.unsubscribe()
   }, [slug])
+
+  if (cargando) return (
+    <div className="min-h-screen bg-black flex items-center justify-center">
+      <p className="text-white text-sm tracking-widest uppercase">Cargando</p>
+    </div>
+  )
+
+  if (!sesion) return <Login slug={slug as string} />
 
   if (!restaurante) return (
     <div className="min-h-screen bg-black flex items-center justify-center">
-      <p className="text-white text-sm tracking-widest uppercase">Cargando</p>
+      <p className="text-white text-sm tracking-widest uppercase">Restaurante no encontrado</p>
     </div>
   )
 
@@ -79,6 +120,13 @@ export default function TarjetaRestaurante() {
             <p className="text-zinc-400 text-sm">Muéstrasela al camarero para canjear tu premio</p>
           </div>
         )}
+
+        <button
+          onClick={() => supabase.auth.signOut()}
+          className="w-full mt-8 text-zinc-600 text-xs tracking-widest uppercase"
+        >
+          Cerrar sesión
+        </button>
 
       </div>
     </main>
