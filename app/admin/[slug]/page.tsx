@@ -86,6 +86,23 @@ export default function AdminPanel() {
     setCargando(false)
   }
 
+  async function quitarSello() {
+    if (!card || !restaurante) return
+    setCargando(true)
+    setMensaje('')
+
+    const nuevosSellos = Math.max(0, card.sellos_actuales - 1)
+
+    await supabase
+      .from('loyalty_cards')
+      .update({ sellos_actuales: nuevosSellos })
+      .eq('id', card.id)
+
+    setMensaje(`− Sello quitado — ahora tiene ${nuevosSellos} de ${restaurante.sellos_necesarios}`)
+    setCard({ ...card, sellos_actuales: nuevosSellos })
+    setCargando(false)
+  }
+
   if (!restaurante) return (
     <div className="min-h-screen bg-black flex items-center justify-center">
       <p className="text-white text-sm tracking-widest uppercase">Cargando</p>
@@ -136,13 +153,22 @@ export default function AdminPanel() {
           </div>
         )}
 
-        <button
-          onClick={darSello}
-          disabled={cargando || !card}
-          className="w-full bg-white text-black font-semibold rounded-xl py-4 disabled:opacity-30"
-        >
-          {cargando ? 'Procesando...' : 'Dar sello'}
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={darSello}
+            disabled={cargando || !card}
+            className="flex-1 bg-white text-black font-semibold rounded-xl py-4 disabled:opacity-30"
+          >
+            {cargando ? '...' : '+ Sello'}
+          </button>
+          <button
+            onClick={quitarSello}
+            disabled={cargando || !card || card.sellos_actuales === 0}
+            className="flex-1 bg-transparent border border-zinc-700 text-white font-semibold rounded-xl py-4 disabled:opacity-30"
+          >
+            {cargando ? '...' : '− Sello'}
+          </button>
+        </div>
 
         {mensaje && (
           <div className="mt-6 border border-zinc-700 rounded-xl p-4">
