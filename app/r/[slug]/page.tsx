@@ -103,16 +103,17 @@ export default function TarjetaRestaurante() {
         </div>
 
         <div className="flex flex-col items-center mb-10">
-          <p className="text-zinc-500 text-xs tracking-widest uppercase mb-4">Escanea para compartir</p>
-          <div className="bg-white p-4 rounded-2xl">
-            <QRCode
-              value={`https://fidelizacion-d87i5et1y-zynalto20s-projects.vercel.app/r/${slug}`}
-              size={160}
-              bgColor="#ffffff"
-              fgColor="#000000"
-            />
-          </div>
-        </div>
+  <p className="text-zinc-500 text-xs tracking-widest uppercase mb-4">Tu QR personal</p>
+  <div className="bg-white p-4 rounded-2xl">
+    <QRCode
+      value={`https://fidelizacion-d87i5et1y-zynalto20s-projects.vercel.app/admin/${slug}?cliente=${sesion.user.id}`}
+      size={160}
+      bgColor="#ffffff"
+      fgColor="#000000"
+    />
+  </div>
+  <p className="text-zinc-600 text-xs mt-3">Muéstraselo al camarero</p>
+</div>
 
         {completa && (
           <div className="border border-white rounded-2xl p-5 text-center">
