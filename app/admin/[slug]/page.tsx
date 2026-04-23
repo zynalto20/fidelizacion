@@ -1,12 +1,13 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
-import { useParams, useSearchParams } from 'next/navigation'
+import { useParams } from 'next/navigation'
+import dynamic from 'next/dynamic'
+
+const Scanner = dynamic(() => import('./scanner'), { ssr: false })
 
 export default function AdminPanel() {
   const { slug } = useParams()
-  const searchParams = useSearchParams()
-  const clienteId = searchParams.get('cliente')
 
   const [pin, setPin] = useState('')
   const [pinVerificado, setPinVerificado] = useState(false)
@@ -15,35 +16,19 @@ export default function AdminPanel() {
   const [restaurante, setRestaurante] = useState<any>(null)
   const [cliente, setCliente] = useState<any>(null)
   const [card, setCard] = useState<any>(null)
+  const [escaneando, setEscaneando] = useState(false)
 
   useEffect(() => {
-    async function cargarDatos() {
+    async function cargarRestaurante() {
       const { data: rest } = await supabase
         .from('restaurants')
         .select('*')
         .eq('slug', slug)
         .single()
       setRestaurante(rest)
-
-      if (clienteId && rest) {
-        const { data: c } = await supabase
-          .from('customers')
-          .select('*')
-          .eq('id', clienteId)
-          .single()
-        setCliente(c)
-
-        const { data: lc } = await supabase
-          .from('loyalty_cards')
-          .select('*')
-          .eq('restaurant_id', rest.id)
-          .eq('customer_id', clienteId)
-          .single()
-        setCard(lc)
-      }
     }
-    cargarDatos()
-  }, [slug, clienteId])
+    cargarRestaurante()
+  }, [slug])
 
   function verificarPin() {
     if (restaurante && pin === restaurante.pin) {
@@ -51,6 +36,45 @@ export default function AdminPanel() {
     } else {
       setMensaje('PIN incorrecto')
     }
+  }
+
+  async function handleScan(url: string) {
+    setEscaneando(false)
+    setCargando(true)
+    setMensaje('')
+    setCliente(null)
+    setCard(null)
+
+    try {
+      const urlObj = new URL(url)
+      const clienteId = urlObj.searchParams.get('cliente')
+
+      if (!clienteId) {
+        setMensaje('QR no válido')
+        setCargando(false)
+        return
+      }
+
+      const { data: c } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('id', clienteId)
+        .single()
+
+      const { data: lc } = await supabase
+        .from('loyalty_cards')
+        .select('*')
+        .eq('restaurant_id', restaurante.id)
+        .eq('customer_id', clienteId)
+        .single()
+
+      setCliente(c)
+      setCard(lc)
+    } catch {
+      setMensaje('QR no válido')
+    }
+
+    setCargando(false)
   }
 
   async function darSello() {
@@ -66,16 +90,10 @@ export default function AdminPanel() {
       .update({ sellos_actuales: completa ? 0 : nuevosSellos })
       .eq('id', card.id)
 
-    await supabase.from('stamp_events').insert({
-      card_id: card.id,
-      tipo: 'sello'
-    })
+    await supabase.from('stamp_events').insert({ card_id: card.id, tipo: 'sello' })
 
     if (completa) {
-      await supabase.from('stamp_events').insert({
-        card_id: card.id,
-        tipo: 'canje'
-      })
+      await supabase.from('stamp_events').insert({ card_id: card.id, tipo: 'canje' })
       setMensaje('🎉 Tarjeta completa — premio canjeado')
       setCard({ ...card, sellos_actuales: 0 })
     } else {
@@ -113,8 +131,8 @@ export default function AdminPanel() {
     <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-sm">
         <div className="mb-12">
-          <p className="text-zinc-500 text-xs tracking-widest uppercase mb-2">Panel camarero</p>
-          <h1 className="text-white text-4xl font-bold leading-tight">Introduce el PIN</h1>
+          <p className="text-zinc-500 text-xs tracking-widest uppercase mb-2">Panel</p>
+          <h1 className="text-white text-4xl font-bold leading-tight">PIN para dar sellos</h1>
         </div>
         <input
           type="number"
@@ -138,37 +156,65 @@ export default function AdminPanel() {
   return (
     <main className="min-h-screen bg-black flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-sm">
-        <div className="mb-12">
-          <p className="text-zinc-500 text-xs tracking-widest uppercase mb-2">Panel camarero</p>
+        <div className="mb-8">
+          <p className="text-zinc-500 text-xs tracking-widest uppercase mb-2">Panel</p>
           <h1 className="text-white text-4xl font-bold leading-tight">{restaurante.nombre}</h1>
         </div>
 
-        {cliente && (
-          <div className="border border-zinc-800 rounded-xl p-5 mb-8">
-            <p className="text-zinc-500 text-xs tracking-widest uppercase mb-1">Cliente</p>
-            <p className="text-white text-lg font-medium">{cliente.email}</p>
-            {card && (
-              <p className="text-zinc-400 text-sm mt-1">{card.sellos_actuales} de {restaurante.sellos_necesarios} sellos</p>
-            )}
+        {!escaneando && !cliente && (
+          <button
+            onClick={() => { setEscaneando(true); setMensaje('') }}
+            className="w-full bg-white text-black font-semibold rounded-xl py-4 mb-4"
+          >
+            Escanear QR del cliente
+          </button>
+        )}
+
+        {escaneando && (
+          <div className="mb-6">
+            <Scanner onScan={handleScan} />
+            <button
+              onClick={() => setEscaneando(false)}
+              className="w-full mt-4 text-zinc-500 text-xs tracking-widest uppercase"
+            >
+              Cancelar
+            </button>
           </div>
         )}
 
-        <div className="flex gap-3">
-          <button
-            onClick={darSello}
-            disabled={cargando || !card}
-            className="flex-1 bg-white text-black font-semibold rounded-xl py-4 disabled:opacity-30"
-          >
-            {cargando ? '...' : '+ Sello'}
-          </button>
-          <button
-            onClick={quitarSello}
-            disabled={cargando || !card || card.sellos_actuales === 0}
-            className="flex-1 bg-transparent border border-zinc-700 text-white font-semibold rounded-xl py-4 disabled:opacity-30"
-          >
-            {cargando ? '...' : '− Sello'}
-          </button>
-        </div>
+        {cliente && card && (
+          <>
+            <div className="border border-zinc-800 rounded-xl p-5 mb-6">
+              <p className="text-zinc-500 text-xs tracking-widest uppercase mb-1">Cliente</p>
+              <p className="text-white text-lg font-medium">{cliente.email}</p>
+              <p className="text-zinc-400 text-sm mt-1">{card.sellos_actuales} de {restaurante.sellos_necesarios} sellos</p>
+            </div>
+
+            <div className="flex gap-3 mb-4">
+              <button
+                onClick={darSello}
+                disabled={cargando}
+                className="flex-1 bg-white text-black font-semibold rounded-xl py-4 disabled:opacity-30"
+              >
+                {cargando ? '...' : '+ Sello'}
+              </button>
+              <button
+                onClick={quitarSello}
+                disabled={cargando || card.sellos_actuales === 0}
+                className="flex-1 bg-transparent border border-zinc-700 text-white font-semibold rounded-xl py-4 disabled:opacity-30"
+              >
+                {cargando ? '...' : '− Sello'}
+              </button>
+            </div>
+
+            <button
+              onClick={() => { setCliente(null); setCard(null); setMensaje('') }}
+              className="w-full text-zinc-500 text-xs tracking-widest uppercase"
+            >
+              Escanear otro cliente
+            </button>
+          </>
+        )}
 
         {mensaje && (
           <div className="mt-6 border border-zinc-700 rounded-xl p-4">
