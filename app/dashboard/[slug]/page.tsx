@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { supabase } from '../../../lib/supabase'
+import { supabase } from '../../lib/supabase'
 
 export default function Dashboard() {
   const { slug } = useParams()
@@ -105,7 +105,7 @@ export default function Dashboard() {
         </div>
 
         <div className="mb-6">
-          <p className="text-zinc-500 text-xs tracking-widest uppercase mb-3">PIN del camarero</p>
+          <p className="text-zinc-500 text-xs tracking-widest uppercase mb-3">PIN PARA DAR SELLO</p>
           <input
             type="number"
             value={nuevoPin}
