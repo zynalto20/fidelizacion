@@ -1,73 +1,61 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
-import jsQR from 'jsqr'
+import { useRef, useState } from 'react'
 
 export default function Scanner({ onScan }: { onScan: (result: string) => void }) {
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    let stream: MediaStream
-    let animFrame: number
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
 
-    async function iniciar() {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' }
-        })
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream
-          videoRef.current.play()
-        }
-        escanear()
-      } catch (e) {
-        setError('No se pudo acceder a la cámara')
-      }
-    }
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.src = url
 
-    function escanear() {
-      const video = videoRef.current
-      const canvas = canvasRef.current
-      if (!video || !canvas) return
-
+    img.onload = async () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = img.width
+      canvas.height = img.height
       const ctx = canvas.getContext('2d')
       if (!ctx) return
+      ctx.drawImage(img, 0, 0)
 
-      if (video.readyState === video.HAVE_ENOUGH_DATA) {
-        canvas.width = video.videoWidth
-        canvas.height = video.videoHeight
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-        const code = jsQR(imageData.data, imageData.width, imageData.height)
-        if (code) {
-          onScan(code.data)
-          stream?.getTracks().forEach(t => t.stop())
-          return
+      try {
+        // @ts-ignore
+        const detector = new window.BarcodeDetector({ formats: ['qr_code'] })
+        const codes = await detector.detect(canvas)
+        if (codes.length > 0) {
+          onScan(codes[0].rawValue)
+        } else {
+          setError('No se detectó ningún QR')
         }
+      } catch {
+        setError('Tu navegador no soporta el escáner')
       }
-      animFrame = requestAnimationFrame(escanear)
-    }
 
-    iniciar()
-
-    return () => {
-      cancelAnimationFrame(animFrame)
-      stream?.getTracks().forEach(t => t.stop())
+      URL.revokeObjectURL(url)
     }
-  }, [])
+  }
 
   return (
-    <div className="flex flex-col items-center">
-      {error ? (
-        <p className="text-red-400 text-sm">{error}</p>
-      ) : (
-        <>
-          <video ref={videoRef} className="w-full rounded-2xl" playsInline muted />
-          <canvas ref={canvasRef} className="hidden" />
-          <p className="text-zinc-500 text-xs tracking-widest uppercase mt-4">Apunta al QR del cliente</p>
-        </>
-      )}
+    <div className="flex flex-col items-center gap-4">
+      <button
+        onClick={() => inputRef.current?.click()}
+        className="w-full bg-zinc-800 text-white font-semibold rounded-xl py-4"
+      >
+        Abrir cámara
+      </button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handleChange}
+        className="hidden"
+      />
+      {error && <p className="text-red-400 text-sm">{error}</p>}
+      <p className="text-zinc-500 text-xs tracking-widest uppercase">Apunta al QR del cliente</p>
     </div>
   )
 }
