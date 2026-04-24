@@ -23,7 +23,7 @@ export default function Scanner({ onScan }: { onScan: (result: string) => void }
           (result, error) => {
             if (result) {
               onScan(result.getText())
-              reader.reset()
+              readerRef.current = null
             }
           }
         )
