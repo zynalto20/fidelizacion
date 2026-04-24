@@ -1,37 +1,73 @@
 'use client'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import jsQR from 'jsqr'
 
 export default function Scanner({ onScan }: { onScan: (result: string) => void }) {
-  const ref = useRef<HTMLDivElement>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    let scanner: any
+    let stream: MediaStream
+    let animFrame: number
 
     async function iniciar() {
-      const { Html5Qrcode } = await import('html5-qrcode')
-      scanner = new Html5Qrcode('scanner-box')
-      await scanner.start(
-        { facingMode: 'environment' },
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        (text: string) => {
-          onScan(text)
-          scanner.stop()
-        },
-        undefined
-      )
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' }
+        })
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream
+          videoRef.current.play()
+        }
+        escanear()
+      } catch (e) {
+        setError('No se pudo acceder a la cámara')
+      }
+    }
+
+    function escanear() {
+      const video = videoRef.current
+      const canvas = canvasRef.current
+      if (!video || !canvas) return
+
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        canvas.width = video.videoWidth
+        canvas.height = video.videoHeight
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+        const code = jsQR(imageData.data, imageData.width, imageData.height)
+        if (code) {
+          onScan(code.data)
+          stream?.getTracks().forEach(t => t.stop())
+          return
+        }
+      }
+      animFrame = requestAnimationFrame(escanear)
     }
 
     iniciar()
 
     return () => {
-      if (scanner) scanner.stop().catch(() => {})
+      cancelAnimationFrame(animFrame)
+      stream?.getTracks().forEach(t => t.stop())
     }
   }, [])
 
   return (
     <div className="flex flex-col items-center">
-      <div id="scanner-box" className="w-full rounded-2xl overflow-hidden" />
-      <p className="text-zinc-500 text-xs tracking-widest uppercase mt-4">Apunta al QR del cliente</p>
+      {error ? (
+        <p className="text-red-400 text-sm">{error}</p>
+      ) : (
+        <>
+          <video ref={videoRef} className="w-full rounded-2xl" playsInline muted />
+          <canvas ref={canvasRef} className="hidden" />
+          <p className="text-zinc-500 text-xs tracking-widest uppercase mt-4">Apunta al QR del cliente</p>
+        </>
+      )}
     </div>
   )
 }
