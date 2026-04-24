@@ -106,7 +106,7 @@ export default function TarjetaRestaurante() {
   <p className="text-zinc-500 text-xs tracking-widest uppercase mb-4">Tu QR personal</p>
   <div className="bg-white p-4 rounded-2xl">
     <QRCode
-      value={`https://fidelizacion-d87i5et1y-zynalto20s-projects.vercel.app/admin/${slug}?cliente=${sesion.user.id}`}
+      value={`https://fidelizacion-eta.vercel.app/admin/${slug}?cliente=${sesion.user.id}`}
       size={160}
       bgColor="#ffffff"
       fgColor="#000000"
