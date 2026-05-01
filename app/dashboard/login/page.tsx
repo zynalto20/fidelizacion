@@ -8,6 +8,7 @@ export default function DashboardLogin() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [cargando, setCargando] = useState(false)
+  const [mostrarPassword, setMostrarPassword] = useState(false)
   const router = useRouter()
 
   async function handleLogin() {
@@ -60,13 +61,22 @@ export default function DashboardLogin() {
 
         <div className="mb-8">
           <p className="text-zinc-500 text-xs tracking-widest uppercase mb-3">Contraseña</p>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            className="w-full bg-transparent border border-zinc-700 rounded-xl px-4 py-4 text-white placeholder-zinc-600 focus:outline-none focus:border-white transition-colors"
-          />
+          <div className="relative">
+            <input
+              type={mostrarPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              className="w-full bg-transparent border border-zinc-700 rounded-xl px-4 py-4 text-white placeholder-zinc-600 focus:outline-none focus:border-white transition-colors pr-12"
+            />
+            <button
+              type="button"
+              onClick={() => setMostrarPassword(!mostrarPassword)}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 text-xs tracking-widest uppercase"
+            >
+              {mostrarPassword ? 'Ocultar' : 'Ver'}
+            </button>
+          </div>
         </div>
 
         <button
