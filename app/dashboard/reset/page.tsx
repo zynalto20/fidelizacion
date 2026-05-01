@@ -9,16 +9,7 @@ export default function ResetPassword() {
   const [mensaje, setMensaje] = useState('')
   const [error, setError] = useState('')
   const [cargando, setCargando] = useState(false)
-  const [listo, setListo] = useState(false)
   const router = useRouter()
-
-  useEffect(() => {
-    supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        setListo(true)
-      }
-    })
-  }, [])
 
   async function handleReset() {
     setCargando(true)
@@ -27,7 +18,7 @@ export default function ResetPassword() {
     const { error } = await supabase.auth.updateUser({ password })
 
     if (error) {
-      setError('Error al cambiar la contraseña: ' + error.message)
+      setError('Error: ' + error.message)
     } else {
       setMensaje('Contraseña cambiada correctamente')
       setTimeout(() => router.push('/dashboard/login'), 2000)
@@ -35,12 +26,6 @@ export default function ResetPassword() {
 
     setCargando(false)
   }
-
-  if (!listo) return (
-    <div className="min-h-screen bg-black flex items-center justify-center">
-      <p className="text-white text-sm tracking-widest uppercase">Verificando enlace...</p>
-    </div>
-  )
 
   return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6">
