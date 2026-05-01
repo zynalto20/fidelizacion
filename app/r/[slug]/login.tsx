@@ -12,8 +12,7 @@ export default function Login({ slug }: { slug: string }) {
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `https://fidelizacion-d87i5et1y-zynalto20s-projects.vercel.app/r/${slug}`
-      }
+            emailRedirectTo: `https://fidelizacion-eta.vercel.app/r/${slug}`      }
     })
     if (!error) setEnviado(true)
     setCargando(false)
