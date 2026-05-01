@@ -44,7 +44,7 @@ export default function DashboardLogin() {
       return
     }
     await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'https://fidelizacion-eta.vercel.app/dashboard/reset'
+      redirectTo: 'https://app.zynalto.com/dashboard/reset'
     })
     setError('')
     setMensaje('Te hemos enviado un email para restablecer tu contraseña')
