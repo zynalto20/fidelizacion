@@ -7,6 +7,7 @@ export default function DashboardLogin() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [mensaje, setMensaje] = useState('')
   const [cargando, setCargando] = useState(false)
   const [mostrarPassword, setMostrarPassword] = useState(false)
   const router = useRouter()
@@ -15,10 +16,7 @@ export default function DashboardLogin() {
     setCargando(true)
     setError('')
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    })
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
       setError('Email o contraseña incorrectos')
@@ -38,6 +36,18 @@ export default function DashboardLogin() {
       setError('No tienes ningún restaurante asociado')
       setCargando(false)
     }
+  }
+
+  async function olvidéContraseña() {
+    if (!email) {
+      setError('Introduce tu email primero')
+      return
+    }
+    await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: 'https://fidelizacion-eta.vercel.app/dashboard/reset'
+    })
+    setError('')
+    setMensaje('Te hemos enviado un email para restablecer tu contraseña')
   }
 
   return (
@@ -87,7 +97,16 @@ export default function DashboardLogin() {
           {cargando ? 'Entrando...' : 'Entrar'}
         </button>
 
+        <button
+          type="button"
+          onClick={olvidéContraseña}
+          className="w-full mt-4 text-zinc-500 text-xs tracking-widest uppercase"
+        >
+          Olvidé mi contraseña
+        </button>
+
         {error && <p className="text-red-400 text-sm text-center mt-4">{error}</p>}
+        {mensaje && <p className="text-green-400 text-sm text-center mt-4">{mensaje}</p>}
       </div>
     </div>
   )
