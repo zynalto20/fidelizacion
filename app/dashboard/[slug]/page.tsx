@@ -27,6 +27,13 @@ export default function Dashboard() {
   const [nuevaRecompensa, setNuevaRecompensa] = useState('')
   const [colores, setColores] = useState<any>({})
   const [vista, setVista] = useState<'inicio' | 'clientes' | 'reservas' | 'ajustes'>('inicio')
+  const [vehiculos, setVehiculos] = useState<any[]>([])
+  const [vehiculoSeleccionado, setVehiculoSeleccionado] = useState<any>(null)
+  const [serviciosVehiculo, setServiciosVehiculo] = useState<any[]>([])
+  const [creandoVehiculo, setCreandoVehiculo] = useState(false)
+  const [vehiculoForm, setVehiculoForm] = useState({ tipo: 'Coche', marca: '', modelo: '', matricula: '', km_actuales: '' })
+  const [creandoServicio, setCreandoServicio] = useState(false)
+  const [servicioForm, setServicioForm] = useState({ tipo_servicio: '', descripcion: '', fecha_servicio: '', km_servicio: '', proximo_servicio_fecha: '', proximo_servicio_km: '' })
 
   useEffect(() => {
     async function cargarDatos() {
@@ -44,7 +51,7 @@ export default function Dashboard() {
       setStats({ clientes: totalClientes || 0, sellos: totalSellos || 0, canjes: totalCanjes || 0 })
       const { data: res } = await supabase.from('bookings').select('*').eq('restaurant_id', rest.id).order('fecha', { ascending: true }).order('hora', { ascending: true })
       setReservas(res || [])
-      const { data: clientesData } = await supabase.from('loyalty_cards').select('*, customers(id, email, nombre, apellidos, telefono_nuevo, prefijo_telefono, dni, direccion, ciudad, codigo_postal, tipo_vehiculo, matricula)').eq('restaurant_id', rest.id).order('actualizado_en', { ascending: false })
+      const { data: clientesData } = await supabase.from('loyalty_cards').select('*, customers(id, email, nombre, apellidos, telefono_nuevo, prefijo_telefono, dni, direccion, ciudad, codigo_postal)').eq('restaurant_id', rest.id).order('actualizado_en', { ascending: false })
       setClientes(clientesData || [])
       setCargando(false)
     }
@@ -53,6 +60,7 @@ export default function Dashboard() {
 
   async function verFichaCliente(cliente: any) {
     setClienteSeleccionado(cliente)
+    setVehiculoSeleccionado(null)
     setEditandoFicha(false)
     setFichaForm({
       nombre: cliente.customers?.nombre || '',
@@ -63,11 +71,17 @@ export default function Dashboard() {
       direccion: cliente.customers?.direccion || '',
       ciudad: cliente.customers?.ciudad || '',
       codigo_postal: cliente.customers?.codigo_postal || '',
-      tipo_vehiculo: cliente.customers?.tipo_vehiculo || '',
-      matricula: cliente.customers?.matricula || '',
     })
     const { data: h } = await supabase.from('stamp_events').select('*').eq('card_id', cliente.id).order('creado_en', { ascending: false })
     setHistorial(h || [])
+    const { data: v } = await supabase.from('vehicles').select('*').eq('customer_id', cliente.customers?.id).order('creado_en', { ascending: false })
+    setVehiculos(v || [])
+  }
+
+  async function verVehiculo(v: any) {
+    setVehiculoSeleccionado(v)
+    const { data: s } = await supabase.from('vehicle_services').select('*').eq('vehicle_id', v.id).order('fecha_servicio', { ascending: false })
+    setServiciosVehiculo(s || [])
   }
 
   async function guardarFicha() {
@@ -76,6 +90,34 @@ export default function Dashboard() {
     setClienteSeleccionado({ ...clienteSeleccionado, customers: { ...clienteSeleccionado.customers, ...fichaForm } })
     setEditandoFicha(false)
     setGuardandoFicha(false)
+  }
+
+  async function crearVehiculo() {
+    const { data } = await supabase.from('vehicles').insert({ ...vehiculoForm, km_actuales: parseInt(vehiculoForm.km_actuales) || 0, customer_id: clienteSeleccionado.customers?.id }).select().single()
+    if (data) setVehiculos([data, ...vehiculos])
+    setCreandoVehiculo(false)
+    setVehiculoForm({ tipo: 'Coche', marca: '', modelo: '', matricula: '', km_actuales: '' })
+  }
+
+  async function eliminarVehiculo(id: string) {
+    if (!confirm('¿Eliminar este vehículo y todo su historial?')) return
+    await supabase.from('vehicle_services').delete().eq('vehicle_id', id)
+    await supabase.from('vehicles').delete().eq('id', id)
+    setVehiculos(vehiculos.filter(v => v.id !== id))
+    if (vehiculoSeleccionado?.id === id) setVehiculoSeleccionado(null)
+  }
+
+  async function crearServicio() {
+    const { data } = await supabase.from('vehicle_services').insert({
+      ...servicioForm,
+      km_servicio: parseInt(servicioForm.km_servicio) || null,
+      proximo_servicio_km: parseInt(servicioForm.proximo_servicio_km) || null,
+      vehicle_id: vehiculoSeleccionado.id,
+      restaurant_id: restaurante.id
+    }).select().single()
+    if (data) setServiciosVehiculo([data, ...serviciosVehiculo])
+    setCreandoServicio(false)
+    setServicioForm({ tipo_servicio: '', descripcion: '', fecha_servicio: '', km_servicio: '', proximo_servicio_fecha: '', proximo_servicio_km: '' })
   }
 
   async function crearCliente() {
@@ -95,7 +137,7 @@ export default function Dashboard() {
       setMensajeCliente('✓ Cliente añadido')
       setNuevoEmail('')
       setCreandoCliente(false)
-      const { data: clientesData } = await supabase.from('loyalty_cards').select('*, customers(id, email, nombre, apellidos, telefono_nuevo, prefijo_telefono, dni, direccion, ciudad, codigo_postal, tipo_vehiculo, matricula)').eq('restaurant_id', restaurante.id).order('actualizado_en', { ascending: false })
+      const { data: clientesData } = await supabase.from('loyalty_cards').select('*, customers(id, email, nombre, apellidos, telefono_nuevo, prefijo_telefono, dni, direccion, ciudad, codigo_postal)').eq('restaurant_id', restaurante.id).order('actualizado_en', { ascending: false })
       setClientes(clientesData || [])
     }
     setCreando(false)
@@ -146,6 +188,92 @@ export default function Dashboard() {
   const borde = fondoClaro ? '#e2e8f0' : 'rgba(255,255,255,0.15)'
   const bordeClaro = fondoClaro ? '#f1f5f9' : 'rgba(255,255,255,0.08)'
 
+  // Vista vehículo seleccionado
+  if (vehiculoSeleccionado) return (
+    <main className="min-h-screen p-6 pb-24" style={{ background: fondo }}>
+      <div className="max-w-sm mx-auto">
+        <button onClick={() => setVehiculoSeleccionado(null)} className="mb-6 text-xs tracking-widest uppercase" style={{ color: textoSec }}>← Volver</button>
+        <div className="mb-6">
+          <p className="text-xs tracking-widest uppercase mb-2" style={{ color: textoSec }}>Vehículo</p>
+          <h1 className="text-2xl font-bold" style={{ color: texto }}>{vehiculoSeleccionado.marca} {vehiculoSeleccionado.modelo}</h1>
+          <p className="text-sm mt-1" style={{ color: textoSec }}>{vehiculoSeleccionado.matricula} · {vehiculoSeleccionado.tipo} · {vehiculoSeleccionado.km_actuales?.toLocaleString()} km</p>
+        </div>
+
+        <div className="flex justify-between items-center mb-4">
+          <p className="text-xs tracking-widest uppercase" style={{ color: textoSec }}>Historial de servicios</p>
+          <button onClick={() => setCreandoServicio(true)} className="text-xs font-semibold px-3 py-2 rounded-lg" style={{ background: boton, color: botonTexto }}>+ Añadir</button>
+        </div>
+
+        {creandoServicio && (
+          <div className="rounded-xl p-4 mb-4" style={{ border: `1px solid ${borde}` }}>
+            <p className="text-xs tracking-widest uppercase mb-3" style={{ color: textoSec }}>Nuevo servicio</p>
+            <div className="mb-3">
+              <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>Tipo de servicio</p>
+              <select value={servicioForm.tipo_servicio} onChange={(e) => setServicioForm({ ...servicioForm, tipo_servicio: e.target.value })} className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }}>
+                <option value="" style={{ background: fondoClaro ? '#fff' : '#000' }}>— Seleccionar —</option>
+                {['Cambio de aceite', 'Revisión general', 'Frenos', 'Neumáticos', 'Filtros', 'Correa de distribución', 'Batería', 'ITV', 'Otro'].map(s => (
+                  <option key={s} value={s} style={{ background: fondoClaro ? '#fff' : '#000' }}>{s}</option>
+                ))}
+              </select>
+            </div>
+            <div className="mb-3">
+              <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>Descripción</p>
+              <textarea value={servicioForm.descripcion} onChange={(e) => setServicioForm({ ...servicioForm, descripcion: e.target.value })} className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm resize-none h-20" style={{ border: `1px solid ${borde}`, color: texto }} />
+            </div>
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div>
+                <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>Fecha servicio</p>
+                <input type="date" value={servicioForm.fecha_servicio} onChange={(e) => setServicioForm({ ...servicioForm, fecha_servicio: e.target.value })} className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
+              </div>
+              <div>
+                <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>KM actuales</p>
+                <input type="number" value={servicioForm.km_servicio} onChange={(e) => setServicioForm({ ...servicioForm, km_servicio: e.target.value })} placeholder="0" className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
+              </div>
+            </div>
+            <p className="text-xs tracking-widest uppercase mb-2" style={{ color: textoSec }}>Próximo servicio</p>
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div>
+                <p className="text-xs mb-1" style={{ color: textoSec }}>Fecha</p>
+                <input type="date" value={servicioForm.proximo_servicio_fecha} onChange={(e) => setServicioForm({ ...servicioForm, proximo_servicio_fecha: e.target.value })} className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
+              </div>
+              <div>
+                <p className="text-xs mb-1" style={{ color: textoSec }}>KM</p>
+                <input type="number" value={servicioForm.proximo_servicio_km} onChange={(e) => setServicioForm({ ...servicioForm, proximo_servicio_km: e.target.value })} placeholder="0" className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={crearServicio} disabled={!servicioForm.tipo_servicio} className="flex-1 text-xs font-semibold rounded-lg py-2 disabled:opacity-30" style={{ background: boton, color: botonTexto }}>Guardar</button>
+              <button onClick={() => setCreandoServicio(false)} className="flex-1 text-xs font-semibold rounded-lg py-2" style={{ border: `1px solid ${borde}`, color: textoSec, background: 'transparent' }}>Cancelar</button>
+            </div>
+          </div>
+        )}
+
+        {serviciosVehiculo.length === 0 ? (
+          <p className="text-sm" style={{ color: textoSec }}>Sin servicios todavía</p>
+        ) : (
+          serviciosVehiculo.map(s => (
+            <div key={s.id} className="rounded-xl p-4 mb-3" style={{ border: `1px solid ${borde}` }}>
+              <div className="flex justify-between items-start mb-2">
+                <p className="font-medium" style={{ color: texto }}>{s.tipo_servicio}</p>
+                <p className="text-xs" style={{ color: textoSec }}>{s.fecha_servicio}</p>
+              </div>
+              {s.descripcion && <p className="text-sm mb-2" style={{ color: textoSec }}>{s.descripcion}</p>}
+              {s.km_servicio && <p className="text-xs mb-2" style={{ color: textoSec }}>KM: {s.km_servicio?.toLocaleString()}</p>}
+              {(s.proximo_servicio_fecha || s.proximo_servicio_km) && (
+                <div className="rounded-lg p-2 mt-2" style={{ background: fondoClaro ? '#f0f9ff' : 'rgba(14,165,233,0.1)' }}>
+                  <p className="text-xs font-medium" style={{ color: primario }}>Próximo servicio</p>
+                  {s.proximo_servicio_fecha && <p className="text-xs" style={{ color: textoSec }}>Fecha: {s.proximo_servicio_fecha}</p>}
+                  {s.proximo_servicio_km && <p className="text-xs" style={{ color: textoSec }}>KM: {s.proximo_servicio_km?.toLocaleString()}</p>}
+                </div>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+    </main>
+  )
+
+  // Vista ficha cliente
   if (clienteSeleccionado) return (
     <main className="min-h-screen p-6 pb-24" style={{ background: fondo }}>
       <div className="max-w-sm mx-auto">
@@ -165,66 +293,39 @@ export default function Dashboard() {
           ))}
         </div>
 
+        {/* Datos personales */}
         <div className="rounded-xl p-5 mb-6" style={{ border: `1px solid ${borde}` }}>
           <div className="flex justify-between items-center mb-4">
-            <p className="text-xs tracking-widest uppercase" style={{ color: textoSec }}>Datos del cliente</p>
+            <p className="text-xs tracking-widest uppercase" style={{ color: textoSec }}>Datos personales</p>
             <button onClick={() => setEditandoFicha(!editandoFicha)} className="text-xs font-semibold px-3 py-1 rounded-lg" style={{ background: boton, color: botonTexto }}>
               {editandoFicha ? 'Cancelar' : 'Editar'}
             </button>
           </div>
-
           {editandoFicha ? (
             <div>
-              <p className="text-xs tracking-widest uppercase mb-3 mt-1" style={{ color: textoSec }}>Datos personales</p>
-              {[
-                { label: 'Nombre', key: 'nombre', type: 'text' },
-                { label: 'Apellidos', key: 'apellidos', type: 'text' },
-                { label: 'DNI', key: 'dni', type: 'text' },
-              ].map(({ label, key, type }) => (
+              {[{ label: 'Nombre', key: 'nombre', type: 'text' }, { label: 'Apellidos', key: 'apellidos', type: 'text' }, { label: 'DNI', key: 'dni', type: 'text' }].map(({ label, key, type }) => (
                 <div key={key} className="mb-3">
                   <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>{label}</p>
                   <input type={type} value={fichaForm[key] || ''} onChange={(e) => setFichaForm({ ...fichaForm, [key]: e.target.value })} className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
                 </div>
               ))}
-
-              <p className="text-xs tracking-widest uppercase mb-3 mt-4" style={{ color: textoSec }}>Teléfono</p>
+              <p className="text-xs tracking-widest uppercase mb-2 mt-3" style={{ color: textoSec }}>Teléfono</p>
               <div className="flex gap-2 mb-3">
                 <select value={fichaForm.prefijo_telefono || '+34'} onChange={(e) => setFichaForm({ ...fichaForm, prefijo_telefono: e.target.value })} className="bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm w-24" style={{ border: `1px solid ${borde}`, color: texto }}>
-                  {['+34', '+1', '+44', '+33', '+49', '+39', '+351', '+52', '+54', '+57', '+56', '+51', '+593', '+598'].map(p => (
+                  {['+34', '+1', '+44', '+33', '+49', '+39', '+351', '+52', '+54', '+57', '+56', '+51'].map(p => (
                     <option key={p} value={p} style={{ background: fondoClaro ? '#fff' : '#000' }}>{p}</option>
                   ))}
                 </select>
                 <input type="tel" value={fichaForm.telefono_nuevo || ''} onChange={(e) => setFichaForm({ ...fichaForm, telefono_nuevo: e.target.value })} placeholder="600 000 000" className="flex-1 bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
               </div>
-
-              <p className="text-xs tracking-widest uppercase mb-3 mt-4" style={{ color: textoSec }}>Dirección</p>
-              {[
-                { label: 'Calle y número', key: 'direccion', type: 'text' },
-                { label: 'Ciudad', key: 'ciudad', type: 'text' },
-                { label: 'Código postal', key: 'codigo_postal', type: 'text' },
-              ].map(({ label, key, type }) => (
+              <p className="text-xs tracking-widest uppercase mb-2 mt-3" style={{ color: textoSec }}>Dirección</p>
+              {[{ label: 'Calle y número', key: 'direccion' }, { label: 'Ciudad', key: 'ciudad' }, { label: 'Código postal', key: 'codigo_postal' }].map(({ label, key }) => (
                 <div key={key} className="mb-3">
                   <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>{label}</p>
-                  <input type={type} value={fichaForm[key] || ''} onChange={(e) => setFichaForm({ ...fichaForm, [key]: e.target.value })} className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
+                  <input type="text" value={fichaForm[key] || ''} onChange={(e) => setFichaForm({ ...fichaForm, [key]: e.target.value })} className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
                 </div>
               ))}
-
-              <p className="text-xs tracking-widest uppercase mb-3 mt-4" style={{ color: textoSec }}>Vehículo</p>
-              <div className="mb-3">
-                <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>Tipo</p>
-                <select value={fichaForm.tipo_vehiculo || ''} onChange={(e) => setFichaForm({ ...fichaForm, tipo_vehiculo: e.target.value })} className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }}>
-                  <option value="" style={{ background: fondoClaro ? '#fff' : '#000' }}>— Sin vehículo —</option>
-                  {['Coche', 'Moto', 'Camioneta', 'Autobús', 'Camión', 'Furgoneta', 'Otro'].map(v => (
-                    <option key={v} value={v} style={{ background: fondoClaro ? '#fff' : '#000' }}>{v}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="mb-4">
-                <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>Matrícula</p>
-                <input type="text" value={fichaForm.matricula || ''} onChange={(e) => setFichaForm({ ...fichaForm, matricula: e.target.value.toUpperCase() })} placeholder="0000 AAA" className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
-              </div>
-
-              <button onClick={guardarFicha} disabled={guardandoFicha} className="w-full font-semibold rounded-xl py-3 disabled:opacity-30 text-sm" style={{ background: boton, color: botonTexto }}>
+              <button onClick={guardarFicha} disabled={guardandoFicha} className="w-full font-semibold rounded-xl py-3 mt-2 disabled:opacity-30 text-sm" style={{ background: boton, color: botonTexto }}>
                 {guardandoFicha ? 'Guardando...' : 'Guardar cambios'}
               </button>
             </div>
@@ -238,8 +339,6 @@ export default function Dashboard() {
                 { label: 'Dirección', value: clienteSeleccionado.customers?.direccion },
                 { label: 'Ciudad', value: clienteSeleccionado.customers?.ciudad },
                 { label: 'C. Postal', value: clienteSeleccionado.customers?.codigo_postal },
-                { label: 'Vehículo', value: clienteSeleccionado.customers?.tipo_vehiculo },
-                { label: 'Matrícula', value: clienteSeleccionado.customers?.matricula },
               ].map(({ label, value }) => (
                 <div key={label} className="flex justify-between py-2" style={{ borderBottom: `1px solid ${bordeClaro}` }}>
                   <p className="text-xs tracking-widest uppercase" style={{ color: textoSec }}>{label}</p>
@@ -250,8 +349,58 @@ export default function Dashboard() {
           )}
         </div>
 
+        {/* Vehículos */}
+        <div className="rounded-xl p-5 mb-6" style={{ border: `1px solid ${borde}` }}>
+          <div className="flex justify-between items-center mb-4">
+            <p className="text-xs tracking-widest uppercase" style={{ color: textoSec }}>Vehículos</p>
+            <button onClick={() => setCreandoVehiculo(true)} className="text-xs font-semibold px-3 py-1 rounded-lg" style={{ background: boton, color: botonTexto }}>+ Añadir</button>
+          </div>
+
+          {creandoVehiculo && (
+            <div className="mb-4 p-3 rounded-xl" style={{ border: `1px solid ${borde}` }}>
+              <div className="mb-3">
+                <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>Tipo</p>
+                <select value={vehiculoForm.tipo} onChange={(e) => setVehiculoForm({ ...vehiculoForm, tipo: e.target.value })} className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }}>
+                  {['Coche', 'Moto', 'Camioneta', 'Autobús', 'Camión', 'Furgoneta', 'Otro'].map(v => (
+                    <option key={v} value={v} style={{ background: fondoClaro ? '#fff' : '#000' }}>{v}</option>
+                  ))}
+                </select>
+              </div>
+              {[{ label: 'Marca', key: 'marca' }, { label: 'Modelo', key: 'modelo' }, { label: 'Matrícula', key: 'matricula' }].map(({ label, key }) => (
+                <div key={key} className="mb-3">
+                  <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>{label}</p>
+                  <input type="text" value={vehiculoForm[key as keyof typeof vehiculoForm]} onChange={(e) => setVehiculoForm({ ...vehiculoForm, [key]: key === 'matricula' ? e.target.value.toUpperCase() : e.target.value })} className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
+                </div>
+              ))}
+              <div className="mb-3">
+                <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>KM actuales</p>
+                <input type="number" value={vehiculoForm.km_actuales} onChange={(e) => setVehiculoForm({ ...vehiculoForm, km_actuales: e.target.value })} placeholder="0" className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
+              </div>
+              <div className="flex gap-2">
+                <button onClick={crearVehiculo} className="flex-1 text-xs font-semibold rounded-lg py-2" style={{ background: boton, color: botonTexto }}>Guardar</button>
+                <button onClick={() => setCreandoVehiculo(false)} className="flex-1 text-xs font-semibold rounded-lg py-2" style={{ border: `1px solid ${borde}`, color: textoSec, background: 'transparent' }}>Cancelar</button>
+              </div>
+            </div>
+          )}
+
+          {vehiculos.length === 0 ? (
+            <p className="text-sm" style={{ color: textoSec }}>Sin vehículos todavía</p>
+          ) : (
+            vehiculos.map(v => (
+              <div key={v.id} className="flex items-center justify-between py-3" style={{ borderBottom: `1px solid ${bordeClaro}` }}>
+                <button onClick={() => verVehiculo(v)} className="flex-1 text-left">
+                  <p className="font-medium text-sm" style={{ color: texto }}>{v.marca} {v.modelo}</p>
+                  <p className="text-xs" style={{ color: textoSec }}>{v.matricula} · {v.tipo} · {v.km_actuales?.toLocaleString()} km</p>
+                </button>
+                <button onClick={() => eliminarVehiculo(v.id)} className="ml-3 text-xs px-2 py-1 rounded-lg" style={{ color: '#ef4444', border: '1px solid #fca5a5' }}>✕</button>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Historial sellos */}
         <div className="rounded-xl p-5" style={{ border: `1px solid ${borde}` }}>
-          <p className="text-xs tracking-widest uppercase mb-4" style={{ color: textoSec }}>Historial</p>
+          <p className="text-xs tracking-widest uppercase mb-4" style={{ color: textoSec }}>Historial de sellos</p>
           {historial.length === 0 ? (
             <p className="text-sm" style={{ color: textoSec }}>Sin actividad todavía</p>
           ) : (
@@ -320,9 +469,7 @@ export default function Dashboard() {
               <p className="text-xs tracking-widest uppercase" style={{ color: textoSec }}>Todos los clientes</p>
               <button onClick={() => setCreandoCliente(true)} className="text-xs font-semibold px-3 py-2 rounded-lg" style={{ background: boton, color: botonTexto }}>+ Añadir</button>
             </div>
-
             <input type="text" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Buscar por email o nombre..." className="w-full bg-transparent rounded-xl px-4 py-3 mb-4 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
-
             {creandoCliente && (
               <div className="rounded-xl p-4 mb-4" style={{ border: `1px solid ${borde}` }}>
                 <p className="text-xs tracking-widest uppercase mb-3" style={{ color: textoSec }}>Nuevo cliente</p>
@@ -334,7 +481,6 @@ export default function Dashboard() {
                 {mensajeCliente && <p className="text-xs mt-2" style={{ color: primario }}>{mensajeCliente}</p>}
               </div>
             )}
-
             {clientes.filter(c => !busqueda || c.customers?.email?.toLowerCase().includes(busqueda.toLowerCase()) || c.customers?.nombre?.toLowerCase().includes(busqueda.toLowerCase())).length === 0 ? (
               <p className="text-sm" style={{ color: textoSec }}>No hay clientes todavía</p>
             ) : (
@@ -345,7 +491,6 @@ export default function Dashboard() {
                       <p className="font-medium" style={{ color: texto }}>{c.customers?.nombre ? `${c.customers.nombre} ${c.customers.apellidos || ''}` : c.customers?.email || 'Sin email'}</p>
                       {c.customers?.nombre && <p className="text-xs mt-0.5" style={{ color: textoSec }}>{c.customers?.email}</p>}
                       <p className="text-sm mt-1" style={{ color: textoSec }}>{c.sellos_actuales} de {restaurante.sellos_necesarios} sellos · {c.total_canjes} canjes</p>
-                      {c.customers?.matricula && <p className="text-xs mt-0.5" style={{ color: primario }}>{c.customers.tipo_vehiculo} · {c.customers.matricula}</p>}
                     </button>
                     <button onClick={() => eliminarCliente(c)} className="ml-3 text-xs px-2 py-1 rounded-lg" style={{ color: '#ef4444', border: '1px solid #fca5a5' }}>Eliminar</button>
                   </div>
