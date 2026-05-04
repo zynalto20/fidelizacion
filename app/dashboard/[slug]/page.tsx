@@ -44,7 +44,7 @@ export default function Dashboard() {
       setStats({ clientes: totalClientes || 0, sellos: totalSellos || 0, canjes: totalCanjes || 0 })
       const { data: res } = await supabase.from('bookings').select('*').eq('restaurant_id', rest.id).order('fecha', { ascending: true }).order('hora', { ascending: true })
       setReservas(res || [])
-      const { data: clientesData } = await supabase.from('loyalty_cards').select('*, customers(id, email, nombre, apellidos, telefono_nuevo, dni, direccion)').eq('restaurant_id', rest.id).order('actualizado_en', { ascending: false })
+      const { data: clientesData } = await supabase.from('loyalty_cards').select('*, customers(id, email, nombre, apellidos, telefono_nuevo, prefijo_telefono, dni, direccion, ciudad, codigo_postal, tipo_vehiculo, matricula)').eq('restaurant_id', rest.id).order('actualizado_en', { ascending: false })
       setClientes(clientesData || [])
       setCargando(false)
     }
@@ -57,9 +57,14 @@ export default function Dashboard() {
     setFichaForm({
       nombre: cliente.customers?.nombre || '',
       apellidos: cliente.customers?.apellidos || '',
+      prefijo_telefono: cliente.customers?.prefijo_telefono || '+34',
       telefono_nuevo: cliente.customers?.telefono_nuevo || '',
       dni: cliente.customers?.dni || '',
-      direccion: cliente.customers?.direccion || ''
+      direccion: cliente.customers?.direccion || '',
+      ciudad: cliente.customers?.ciudad || '',
+      codigo_postal: cliente.customers?.codigo_postal || '',
+      tipo_vehiculo: cliente.customers?.tipo_vehiculo || '',
+      matricula: cliente.customers?.matricula || '',
     })
     const { data: h } = await supabase.from('stamp_events').select('*').eq('card_id', cliente.id).order('creado_en', { ascending: false })
     setHistorial(h || [])
@@ -79,7 +84,7 @@ export default function Dashboard() {
     const { data: clienteExiste } = await supabase.from('customers').select('*').eq('email', nuevoEmail).single()
     let customerId = clienteExiste?.id
     if (!customerId) {
-      const { data: nuevo } = await supabase.from('customers').insert({ email: nuevoEmail }).select().single()
+      const { data: nuevo } = await supabase.from('customers').insert({ email: nuevoEmail, prefijo_telefono: '+34' }).select().single()
       customerId = nuevo?.id
     }
     if (!customerId) { setMensajeCliente('Error al crear el cliente'); setCreando(false); return }
@@ -90,7 +95,7 @@ export default function Dashboard() {
       setMensajeCliente('✓ Cliente añadido')
       setNuevoEmail('')
       setCreandoCliente(false)
-      const { data: clientesData } = await supabase.from('loyalty_cards').select('*, customers(id, email, nombre, apellidos, telefono_nuevo, dni, direccion)').eq('restaurant_id', restaurante.id).order('actualizado_en', { ascending: false })
+      const { data: clientesData } = await supabase.from('loyalty_cards').select('*, customers(id, email, nombre, apellidos, telefono_nuevo, prefijo_telefono, dni, direccion, ciudad, codigo_postal, tipo_vehiculo, matricula)').eq('restaurant_id', restaurante.id).order('actualizado_en', { ascending: false })
       setClientes(clientesData || [])
     }
     setCreando(false)
@@ -147,7 +152,8 @@ export default function Dashboard() {
         <button onClick={() => setClienteSeleccionado(null)} className="mb-6 text-xs tracking-widest uppercase" style={{ color: textoSec }}>← Volver</button>
         <div className="mb-8">
           <p className="text-xs tracking-widest uppercase mb-2" style={{ color: textoSec }}>Ficha de cliente</p>
-          <h1 className="text-2xl font-bold break-all" style={{ color: texto }}>{clienteSeleccionado.customers?.email || 'Sin email'}</h1>
+          <h1 className="text-2xl font-bold break-all" style={{ color: texto }}>{clienteSeleccionado.customers?.nombre ? `${clienteSeleccionado.customers.nombre} ${clienteSeleccionado.customers.apellidos || ''}` : clienteSeleccionado.customers?.email || 'Sin email'}</h1>
+          {clienteSeleccionado.customers?.nombre && <p className="text-sm mt-1" style={{ color: textoSec }}>{clienteSeleccionado.customers?.email}</p>}
         </div>
 
         <div className="grid grid-cols-3 gap-3 mb-8">
@@ -169,25 +175,56 @@ export default function Dashboard() {
 
           {editandoFicha ? (
             <div>
+              <p className="text-xs tracking-widest uppercase mb-3 mt-1" style={{ color: textoSec }}>Datos personales</p>
               {[
                 { label: 'Nombre', key: 'nombre', type: 'text' },
                 { label: 'Apellidos', key: 'apellidos', type: 'text' },
-                { label: 'Teléfono', key: 'telefono_nuevo', type: 'tel' },
                 { label: 'DNI', key: 'dni', type: 'text' },
-                { label: 'Dirección', key: 'direccion', type: 'text' },
               ].map(({ label, key, type }) => (
                 <div key={key} className="mb-3">
                   <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>{label}</p>
-                  <input
-                    type={type}
-                    value={fichaForm[key] || ''}
-                    onChange={(e) => setFichaForm({ ...fichaForm, [key]: e.target.value })}
-                    className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm"
-                    style={{ border: `1px solid ${borde}`, color: texto }}
-                  />
+                  <input type={type} value={fichaForm[key] || ''} onChange={(e) => setFichaForm({ ...fichaForm, [key]: e.target.value })} className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
                 </div>
               ))}
-              <button onClick={guardarFicha} disabled={guardandoFicha} className="w-full font-semibold rounded-xl py-3 mt-2 disabled:opacity-30 text-sm" style={{ background: boton, color: botonTexto }}>
+
+              <p className="text-xs tracking-widest uppercase mb-3 mt-4" style={{ color: textoSec }}>Teléfono</p>
+              <div className="flex gap-2 mb-3">
+                <select value={fichaForm.prefijo_telefono || '+34'} onChange={(e) => setFichaForm({ ...fichaForm, prefijo_telefono: e.target.value })} className="bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm w-24" style={{ border: `1px solid ${borde}`, color: texto }}>
+                  {['+34', '+1', '+44', '+33', '+49', '+39', '+351', '+52', '+54', '+57', '+56', '+51', '+593', '+598'].map(p => (
+                    <option key={p} value={p} style={{ background: fondoClaro ? '#fff' : '#000' }}>{p}</option>
+                  ))}
+                </select>
+                <input type="tel" value={fichaForm.telefono_nuevo || ''} onChange={(e) => setFichaForm({ ...fichaForm, telefono_nuevo: e.target.value })} placeholder="600 000 000" className="flex-1 bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
+              </div>
+
+              <p className="text-xs tracking-widest uppercase mb-3 mt-4" style={{ color: textoSec }}>Dirección</p>
+              {[
+                { label: 'Calle y número', key: 'direccion', type: 'text' },
+                { label: 'Ciudad', key: 'ciudad', type: 'text' },
+                { label: 'Código postal', key: 'codigo_postal', type: 'text' },
+              ].map(({ label, key, type }) => (
+                <div key={key} className="mb-3">
+                  <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>{label}</p>
+                  <input type={type} value={fichaForm[key] || ''} onChange={(e) => setFichaForm({ ...fichaForm, [key]: e.target.value })} className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
+                </div>
+              ))}
+
+              <p className="text-xs tracking-widest uppercase mb-3 mt-4" style={{ color: textoSec }}>Vehículo</p>
+              <div className="mb-3">
+                <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>Tipo</p>
+                <select value={fichaForm.tipo_vehiculo || ''} onChange={(e) => setFichaForm({ ...fichaForm, tipo_vehiculo: e.target.value })} className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }}>
+                  <option value="" style={{ background: fondoClaro ? '#fff' : '#000' }}>— Sin vehículo —</option>
+                  {['Coche', 'Moto', 'Camioneta', 'Autobús', 'Camión', 'Furgoneta', 'Otro'].map(v => (
+                    <option key={v} value={v} style={{ background: fondoClaro ? '#fff' : '#000' }}>{v}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="mb-4">
+                <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>Matrícula</p>
+                <input type="text" value={fichaForm.matricula || ''} onChange={(e) => setFichaForm({ ...fichaForm, matricula: e.target.value.toUpperCase() })} placeholder="0000 AAA" className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
+              </div>
+
+              <button onClick={guardarFicha} disabled={guardandoFicha} className="w-full font-semibold rounded-xl py-3 disabled:opacity-30 text-sm" style={{ background: boton, color: botonTexto }}>
                 {guardandoFicha ? 'Guardando...' : 'Guardar cambios'}
               </button>
             </div>
@@ -196,9 +233,13 @@ export default function Dashboard() {
               {[
                 { label: 'Nombre', value: clienteSeleccionado.customers?.nombre },
                 { label: 'Apellidos', value: clienteSeleccionado.customers?.apellidos },
-                { label: 'Teléfono', value: clienteSeleccionado.customers?.telefono_nuevo },
                 { label: 'DNI', value: clienteSeleccionado.customers?.dni },
+                { label: 'Teléfono', value: clienteSeleccionado.customers?.telefono_nuevo ? `${clienteSeleccionado.customers.prefijo_telefono || '+34'} ${clienteSeleccionado.customers.telefono_nuevo}` : null },
                 { label: 'Dirección', value: clienteSeleccionado.customers?.direccion },
+                { label: 'Ciudad', value: clienteSeleccionado.customers?.ciudad },
+                { label: 'C. Postal', value: clienteSeleccionado.customers?.codigo_postal },
+                { label: 'Vehículo', value: clienteSeleccionado.customers?.tipo_vehiculo },
+                { label: 'Matrícula', value: clienteSeleccionado.customers?.matricula },
               ].map(({ label, value }) => (
                 <div key={label} className="flex justify-between py-2" style={{ borderBottom: `1px solid ${bordeClaro}` }}>
                   <p className="text-xs tracking-widest uppercase" style={{ color: textoSec }}>{label}</p>
@@ -280,7 +321,7 @@ export default function Dashboard() {
               <button onClick={() => setCreandoCliente(true)} className="text-xs font-semibold px-3 py-2 rounded-lg" style={{ background: boton, color: botonTexto }}>+ Añadir</button>
             </div>
 
-            <input type="text" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Buscar por email..." className="w-full bg-transparent rounded-xl px-4 py-3 mb-4 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
+            <input type="text" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Buscar por email o nombre..." className="w-full bg-transparent rounded-xl px-4 py-3 mb-4 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
 
             {creandoCliente && (
               <div className="rounded-xl p-4 mb-4" style={{ border: `1px solid ${borde}` }}>
@@ -294,16 +335,17 @@ export default function Dashboard() {
               </div>
             )}
 
-            {clientes.filter(c => !busqueda || c.customers?.email?.toLowerCase().includes(busqueda.toLowerCase())).length === 0 ? (
+            {clientes.filter(c => !busqueda || c.customers?.email?.toLowerCase().includes(busqueda.toLowerCase()) || c.customers?.nombre?.toLowerCase().includes(busqueda.toLowerCase())).length === 0 ? (
               <p className="text-sm" style={{ color: textoSec }}>No hay clientes todavía</p>
             ) : (
-              clientes.filter(c => !busqueda || c.customers?.email?.toLowerCase().includes(busqueda.toLowerCase())).map(c => (
+              clientes.filter(c => !busqueda || c.customers?.email?.toLowerCase().includes(busqueda.toLowerCase()) || c.customers?.nombre?.toLowerCase().includes(busqueda.toLowerCase())).map(c => (
                 <div key={c.id} className="rounded-xl p-4 mb-3" style={{ border: `1px solid ${borde}` }}>
                   <div className="flex justify-between items-center">
                     <button onClick={() => verFichaCliente(c)} className="flex-1 text-left">
                       <p className="font-medium" style={{ color: texto }}>{c.customers?.nombre ? `${c.customers.nombre} ${c.customers.apellidos || ''}` : c.customers?.email || 'Sin email'}</p>
-                      <p className="text-xs mt-0.5" style={{ color: textoSec }}>{c.customers?.email}</p>
+                      {c.customers?.nombre && <p className="text-xs mt-0.5" style={{ color: textoSec }}>{c.customers?.email}</p>}
                       <p className="text-sm mt-1" style={{ color: textoSec }}>{c.sellos_actuales} de {restaurante.sellos_necesarios} sellos · {c.total_canjes} canjes</p>
+                      {c.customers?.matricula && <p className="text-xs mt-0.5" style={{ color: primario }}>{c.customers.tipo_vehiculo} · {c.customers.matricula}</p>}
                     </button>
                     <button onClick={() => eliminarCliente(c)} className="ml-3 text-xs px-2 py-1 rounded-lg" style={{ color: '#ef4444', border: '1px solid #fca5a5' }}>Eliminar</button>
                   </div>
