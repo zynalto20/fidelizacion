@@ -55,7 +55,7 @@ export default function TarjetaRestaurante() {
   }, [slug])
 
   if (cargando) return (
-    <div className="min-h-screen bg-black flex items-center justify-center">
+    <div className="min-h-screen flex items-center justify-center" style={{ background: '#000' }}>
       <p className="text-white text-sm tracking-widest uppercase">Cargando</p>
     </div>
   )
@@ -63,68 +63,83 @@ export default function TarjetaRestaurante() {
   if (!sesion) return <Login slug={slug as string} />
 
   if (!restaurante) return (
-    <div className="min-h-screen bg-black flex items-center justify-center">
+    <div className="min-h-screen flex items-center justify-center" style={{ background: '#000' }}>
       <p className="text-white text-sm tracking-widest uppercase">Restaurante no encontrado</p>
     </div>
   )
 
+  const fondo = restaurante.color_fondo || '#000000'
+  const texto = restaurante.color_texto || '#ffffff'
+  const boton = restaurante.color_boton || '#ffffff'
+  const botonTexto = restaurante.color_boton_texto || '#000000'
+  const primario = restaurante.color_primario || '#ffffff'
   const sellosNecesarios = restaurante.sellos_necesarios
   const completa = sellos >= sellosNecesarios
 
   return (
-    <main className="min-h-screen bg-black flex flex-col items-center justify-center p-6">
+    <main className="min-h-screen flex flex-col items-center justify-center p-6" style={{ background: fondo }}>
       <div className="w-full max-w-sm">
 
         <div className="mb-12">
           {restaurante.logo_url && (
             <img src={restaurante.logo_url} alt={restaurante.nombre} className="h-16 object-contain mb-6" />
           )}
-          <p className="text-zinc-500 text-xs tracking-widest uppercase mb-2">Tarjeta de fidelización</p>
-          <h1 className="text-white text-4xl font-bold leading-tight">{restaurante.nombre}</h1>
+          <p className="text-xs tracking-widest uppercase mb-2" style={{ color: primario, opacity: 0.7 }}>Tarjeta de fidelización</p>
+          <h1 className="text-4xl font-bold leading-tight" style={{ color: texto }}>{restaurante.nombre}</h1>
         </div>
 
         <div className="grid grid-cols-5 gap-2 mb-10">
           {Array.from({ length: sellosNecesarios }).map((_, i) => (
-            <div key={i} className={`aspect-square rounded-full border flex items-center justify-center transition-all ${i < sellos ? 'bg-white border-white' : 'bg-transparent border-zinc-700'}`}>
-              {i < sellos && <div className="w-2 h-2 rounded-full bg-black" />}
+            <div
+              key={i}
+              className="aspect-square rounded-full border-2 flex items-center justify-center transition-all"
+              style={{
+                background: i < sellos ? primario : 'transparent',
+                borderColor: i < sellos ? primario : `${texto}30`
+              }}
+            >
+              {i < sellos && <div className="w-2 h-2 rounded-full" style={{ background: fondo }} />}
             </div>
           ))}
         </div>
 
-        <div className="flex items-end justify-between mb-10 border-t border-zinc-800 pt-6">
+        <div className="flex items-end justify-between mb-10 pt-6" style={{ borderTop: `1px solid ${texto}20` }}>
           <div>
-            <p className="text-zinc-500 text-xs tracking-widest uppercase mb-1">Sellos</p>
-            <p className="text-white text-5xl font-bold">{sellos}<span className="text-zinc-600 text-2xl">/{sellosNecesarios}</span></p>
+            <p className="text-xs tracking-widest uppercase mb-1" style={{ color: `${texto}60` }}>Sellos</p>
+            <p className="text-5xl font-bold" style={{ color: texto }}>
+              {sellos}<span className="text-2xl" style={{ color: `${texto}40` }}>/{sellosNecesarios}</span>
+            </p>
           </div>
           <div className="text-right">
-            <p className="text-zinc-500 text-xs tracking-widest uppercase mb-1">Premio</p>
-            <p className="text-white text-lg font-medium">{restaurante.recompensa}</p>
+            <p className="text-xs tracking-widest uppercase mb-1" style={{ color: `${texto}60` }}>Premio</p>
+            <p className="text-lg font-medium" style={{ color: texto }}>{restaurante.recompensa}</p>
           </div>
         </div>
 
         <div className="flex flex-col items-center mb-10">
-  <p className="text-zinc-500 text-xs tracking-widest uppercase mb-4">Tu QR personal</p>
-  <div className="bg-white p-4 rounded-2xl">
-    <QRCode
-      value={`https://app.zynalto.com/admin/${slug}?cliente=${sesion.user.id}`}
-      size={160}
-      bgColor="#ffffff"
-      fgColor="#000000"
-    />
-  </div>
-  <p className="text-zinc-600 text-xs mt-3">Muéstraselo al camarero</p>
-</div>
+          <p className="text-xs tracking-widest uppercase mb-4" style={{ color: `${texto}60` }}>Tu QR personal</p>
+          <div className="p-4 rounded-2xl" style={{ background: '#ffffff' }}>
+            <QRCode
+              value={`https://app.zynalto.com/admin/${slug}?cliente=${sesion.user.id}`}
+              size={160}
+              bgColor="#ffffff"
+              fgColor="#000000"
+            />
+          </div>
+          <p className="text-xs mt-3" style={{ color: `${texto}40` }}>Muéstraselo al empleado</p>
+        </div>
 
         {completa && (
-          <div className="border border-white rounded-2xl p-5 text-center">
-            <p className="text-white text-lg font-semibold mb-1">Tarjeta completa</p>
-            <p className="text-zinc-400 text-sm">Muéstrasela al camarero para canjear tu premio</p>
+          <div className="rounded-2xl p-5 text-center mb-6" style={{ border: `2px solid ${primario}` }}>
+            <p className="text-lg font-semibold mb-1" style={{ color: texto }}>Tarjeta completa</p>
+            <p className="text-sm" style={{ color: `${texto}60` }}>Muéstrasela al empleado para canjear tu premio</p>
           </div>
         )}
 
         <button
           onClick={() => supabase.auth.signOut()}
-          className="w-full mt-8 text-zinc-600 text-xs tracking-widest uppercase"
+          className="w-full mt-4 text-xs tracking-widest uppercase"
+          style={{ color: `${texto}30` }}
         >
           Cerrar sesión
         </button>
