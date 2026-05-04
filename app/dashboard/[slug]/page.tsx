@@ -8,6 +8,7 @@ export default function Dashboard() {
   const router = useRouter()
   const [restaurante, setRestaurante] = useState<any>(null)
   const [stats, setStats] = useState({ clientes: 0, sellos: 0, canjes: 0 })
+  const [statsServicios, setStatsServicios] = useState<any>({})
   const [reservas, setReservas] = useState<any[]>([])
   const [clientes, setClientes] = useState<any[]>([])
   const [clienteSeleccionado, setClienteSeleccionado] = useState<any>(null)
@@ -34,6 +35,7 @@ export default function Dashboard() {
   const [vehiculoForm, setVehiculoForm] = useState({ tipo: 'Coche', marca: '', modelo: '', matricula: '', km_actuales: '' })
   const [creandoServicio, setCreandoServicio] = useState(false)
   const [servicioForm, setServicioForm] = useState({ tipo_servicio: '', descripcion: '', fecha_servicio: '', km_servicio: '', proximo_servicio_fecha: '', proximo_servicio_km: '' })
+  const [statsCliente, setStatsCliente] = useState<any>({})
 
   useEffect(() => {
     async function cargarDatos() {
@@ -53,6 +55,10 @@ export default function Dashboard() {
       setReservas(res || [])
       const { data: clientesData } = await supabase.from('loyalty_cards').select('*, customers(id, email, nombre, apellidos, telefono_nuevo, prefijo_telefono, dni, direccion, ciudad, codigo_postal)').eq('restaurant_id', rest.id).order('actualizado_en', { ascending: false })
       setClientes(clientesData || [])
+      const { data: serviciosData } = await supabase.from('vehicle_services').select('tipo_servicio').eq('restaurant_id', rest.id)
+      const conteo: any = {}
+      serviciosData?.forEach(s => { conteo[s.tipo_servicio] = (conteo[s.tipo_servicio] || 0) + 1 })
+      setStatsServicios(conteo)
       setCargando(false)
     }
     cargarDatos()
@@ -76,6 +82,10 @@ export default function Dashboard() {
     setHistorial(h || [])
     const { data: v } = await supabase.from('vehicles').select('*').eq('customer_id', cliente.customers?.id).order('creado_en', { ascending: false })
     setVehiculos(v || [])
+    const { data: svcs } = await supabase.from('vehicle_services').select('tipo_servicio').eq('restaurant_id', restaurante.id).in('vehicle_id', v?.map((vv: any) => vv.id) || [])
+    const conteo: any = {}
+    svcs?.forEach(s => { conteo[s.tipo_servicio] = (conteo[s.tipo_servicio] || 0) + 1 })
+    setStatsCliente(conteo)
   }
 
   async function verVehiculo(v: any) {
@@ -188,7 +198,6 @@ export default function Dashboard() {
   const borde = fondoClaro ? '#e2e8f0' : 'rgba(255,255,255,0.15)'
   const bordeClaro = fondoClaro ? '#f1f5f9' : 'rgba(255,255,255,0.08)'
 
-  // Vista vehículo seleccionado
   if (vehiculoSeleccionado) return (
     <main className="min-h-screen p-6 pb-24" style={{ background: fondo }}>
       <div className="max-w-sm mx-auto">
@@ -273,7 +282,6 @@ export default function Dashboard() {
     </main>
   )
 
-  // Vista ficha cliente
   if (clienteSeleccionado) return (
     <main className="min-h-screen p-6 pb-24" style={{ background: fondo }}>
       <div className="max-w-sm mx-auto">
@@ -284,7 +292,8 @@ export default function Dashboard() {
           {clienteSeleccionado.customers?.nombre && <p className="text-sm mt-1" style={{ color: textoSec }}>{clienteSeleccionado.customers?.email}</p>}
         </div>
 
-        <div className="grid grid-cols-3 gap-3 mb-8">
+        {/* Stats del cliente */}
+        <div className="grid grid-cols-3 gap-3 mb-4">
           {[{ label: 'Sellos', value: clienteSeleccionado.sellos_actuales }, { label: 'Canjes', value: clienteSeleccionado.total_canjes }, { label: 'Visitas', value: historial.filter(h => h.tipo === 'sello').length }].map(({ label, value }) => (
             <div key={label} className="rounded-xl p-4 text-center" style={{ border: `1px solid ${borde}` }}>
               <p className="text-3xl font-bold" style={{ color: texto }}>{value}</p>
@@ -292,6 +301,19 @@ export default function Dashboard() {
             </div>
           ))}
         </div>
+
+        {/* Servicios del cliente */}
+        {Object.keys(statsCliente).length > 0 && (
+          <div className="rounded-xl p-4 mb-6" style={{ border: `1px solid ${borde}` }}>
+            <p className="text-xs tracking-widest uppercase mb-3" style={{ color: textoSec }}>Servicios realizados</p>
+            {Object.entries(statsCliente).sort((a: any, b: any) => b[1] - a[1]).map(([tipo, count]: any) => (
+              <div key={tipo} className="flex justify-between py-2" style={{ borderBottom: `1px solid ${bordeClaro}` }}>
+                <p className="text-sm" style={{ color: texto }}>{tipo}</p>
+                <p className="text-sm font-bold" style={{ color: primario }}>{count}</p>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Datos personales */}
         <div className="rounded-xl p-5 mb-6" style={{ border: `1px solid ${borde}` }}>
@@ -355,7 +377,6 @@ export default function Dashboard() {
             <p className="text-xs tracking-widest uppercase" style={{ color: textoSec }}>Vehículos</p>
             <button onClick={() => setCreandoVehiculo(true)} className="text-xs font-semibold px-3 py-1 rounded-lg" style={{ background: boton, color: botonTexto }}>+ Añadir</button>
           </div>
-
           {creandoVehiculo && (
             <div className="mb-4 p-3 rounded-xl" style={{ border: `1px solid ${borde}` }}>
               <div className="mb-3">
@@ -382,7 +403,6 @@ export default function Dashboard() {
               </div>
             </div>
           )}
-
           {vehiculos.length === 0 ? (
             <p className="text-sm" style={{ color: textoSec }}>Sin vehículos todavía</p>
           ) : (
@@ -438,14 +458,27 @@ export default function Dashboard() {
 
         {vista === 'inicio' && (
           <>
-            <div className="grid grid-cols-3 gap-3 mb-8">
-              {[{ label: 'Clientes', value: stats.clientes }, { label: 'Sellos', value: stats.sellos }, { label: 'Canjes', value: stats.canjes }].map(({ label, value }) => (
+            <div className="grid grid-cols-3 gap-3 mb-6">
+              {[{ label: 'Clientes', value: stats.clientes }, { label: 'Canjes', value: stats.canjes }, { label: 'Sellos', value: stats.sellos }].map(({ label, value }) => (
                 <div key={label} className="rounded-xl p-4 text-center" style={{ border: `1px solid ${borde}` }}>
                   <p className="text-3xl font-bold" style={{ color: texto }}>{value}</p>
                   <p className="text-xs tracking-widest uppercase mt-1" style={{ color: textoSec }}>{label}</p>
                 </div>
               ))}
             </div>
+
+            {Object.keys(statsServicios).length > 0 && (
+              <div className="rounded-xl p-5 mb-6" style={{ border: `1px solid ${borde}` }}>
+                <p className="text-xs tracking-widest uppercase mb-3" style={{ color: textoSec }}>Servicios realizados</p>
+                {Object.entries(statsServicios).sort((a: any, b: any) => b[1] - a[1]).map(([tipo, count]: any) => (
+                  <div key={tipo} className="flex justify-between py-2" style={{ borderBottom: `1px solid ${bordeClaro}` }}>
+                    <p className="text-sm" style={{ color: texto }}>{tipo}</p>
+                    <p className="text-sm font-bold" style={{ color: primario }}>{count}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div className="rounded-xl p-5 mb-4" style={{ border: `1px solid ${borde}` }}>
               <p className="text-xs tracking-widest uppercase mb-3" style={{ color: textoSec }}>Próximas reservas</p>
               {reservas.filter(r => r.estado !== 'cancelada').slice(0, 3).length === 0 ? (
