@@ -3,18 +3,19 @@ import { useEffect, useRef, useState } from 'react'
 
 export default function Scanner({ onScan }: { onScan: (result: string) => void }) {
   const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
   const [error, setError] = useState('')
-  const escaneadoRef = useRef(false)
   const streamRef = useRef<MediaStream | null>(null)
+  const escaneadoRef = useRef(false)
+  const intervalRef = useRef<any>(null)
 
   function pararCamara() {
+    if (intervalRef.current) clearInterval(intervalRef.current)
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop())
+      streamRef.current.getTracks().forEach(t => t.stop())
       streamRef.current = null
     }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null
-    }
+    if (videoRef.current) videoRef.current.srcObject = null
   }
 
   useEffect(() => {
@@ -24,53 +25,49 @@ export default function Scanner({ onScan }: { onScan: (result: string) => void }
           video: { facingMode: 'environment' }
         })
         streamRef.current = stream
-
         if (videoRef.current) {
           videoRef.current.srcObject = stream
           videoRef.current.play()
         }
 
-        const { BrowserQRCodeReader } = await import('@zxing/browser')
-        const reader = new BrowserQRCodeReader()
+        intervalRef.current = setInterval(async () => {
+          if (escaneadoRef.current) return
+          const video = videoRef.current
+          const canvas = canvasRef.current
+          if (!video || !canvas || video.readyState < 2) return
 
-        const interval = setInterval(async () => {
-          if (!videoRef.current || escaneadoRef.current) return
+          canvas.width = video.videoWidth
+          canvas.height = video.videoHeight
+          const ctx = canvas.getContext('2d')
+          if (!ctx) return
+          ctx.drawImage(video, 0, 0)
+
           try {
-            const result = await reader.decodeFromVideoElement(videoRef.current)
-            if (result && !escaneadoRef.current) {
+            // @ts-ignore
+            const detector = new window.BarcodeDetector({ formats: ['qr_code'] })
+            const codes = await detector.detect(canvas)
+            if (codes.length > 0 && !escaneadoRef.current) {
               escaneadoRef.current = true
-              clearInterval(interval)
               pararCamara()
-              onScan(result.getText())
+              onScan(codes[0].rawValue)
             }
           } catch {}
-        }, 500)
-
-        return () => clearInterval(interval)
-      } catch (e) {
+        }, 300)
+      } catch {
         setError('No se pudo acceder a la cámara')
       }
     }
 
     iniciar()
-
-    return () => {
-      pararCamara()
-    }
+    return () => pararCamara()
   }, [])
 
   return (
     <div className="flex flex-col items-center gap-4">
       {error && <p className="text-red-400 text-sm text-center">{error}</p>}
-      <video
-        ref={videoRef}
-        className="w-full rounded-2xl"
-        playsInline
-        muted
-      />
-      <p className="text-zinc-500 text-xs tracking-widest uppercase">
-        Apunta al QR del cliente
-      </p>
+      <video ref={videoRef} className="w-full rounded-2xl" playsInline muted />
+      <canvas ref={canvasRef} className="hidden" />
+      <p className="text-zinc-500 text-xs tracking-widest uppercase">Apunta al QR del cliente</p>
     </div>
   )
 }
