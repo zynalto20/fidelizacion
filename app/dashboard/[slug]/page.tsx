@@ -9,13 +9,16 @@ export default function Dashboard() {
   const [restaurante, setRestaurante] = useState<any>(null)
   const [stats, setStats] = useState({ clientes: 0, sellos: 0, canjes: 0 })
   const [reservas, setReservas] = useState<any[]>([])
+  const [clientes, setClientes] = useState<any[]>([])
+  const [clienteSeleccionado, setClienteSeleccionado] = useState<any>(null)
+  const [historial, setHistorial] = useState<any[]>([])
   const [cargando, setCargando] = useState(true)
   const [guardando, setGuardando] = useState(false)
   const [mensaje, setMensaje] = useState('')
   const [nuevoPin, setNuevoPin] = useState('')
   const [nuevaRecompensa, setNuevaRecompensa] = useState('')
   const [colores, setColores] = useState<any>({})
-  const [vista, setVista] = useState<'inicio' | 'reservas' | 'ajustes'>('inicio')
+  const [vista, setVista] = useState<'inicio' | 'clientes' | 'reservas' | 'ajustes'>('inicio')
 
   useEffect(() => {
     async function cargarDatos() {
@@ -27,16 +30,28 @@ export default function Dashboard() {
       setNuevoPin(rest.pin)
       setNuevaRecompensa(rest.recompensa)
       setColores({ color_fondo: rest.color_fondo || '#000000', color_texto: rest.color_texto || '#ffffff', color_primario: rest.color_primario || '#ffffff', color_boton: rest.color_boton || '#ffffff', color_boton_texto: rest.color_boton_texto || '#000000' })
-      const { count: clientes } = await supabase.from('loyalty_cards').select('*', { count: 'exact', head: true }).eq('restaurant_id', rest.id)
-      const { count: sellos } = await supabase.from('stamp_events').select('*', { count: 'exact', head: true }).eq('tipo', 'sello')
-      const { count: canjes } = await supabase.from('stamp_events').select('*', { count: 'exact', head: true }).eq('tipo', 'canje')
-      setStats({ clientes: clientes || 0, sellos: sellos || 0, canjes: canjes || 0 })
+      const { count: totalClientes } = await supabase.from('loyalty_cards').select('*', { count: 'exact', head: true }).eq('restaurant_id', rest.id)
+      const { count: totalSellos } = await supabase.from('stamp_events').select('*', { count: 'exact', head: true }).eq('tipo', 'sello')
+      const { count: totalCanjes } = await supabase.from('stamp_events').select('*', { count: 'exact', head: true }).eq('tipo', 'canje')
+      setStats({ clientes: totalClientes || 0, sellos: totalSellos || 0, canjes: totalCanjes || 0 })
       const { data: res } = await supabase.from('bookings').select('*').eq('restaurant_id', rest.id).order('fecha', { ascending: true }).order('hora', { ascending: true })
       setReservas(res || [])
+      const { data: clientesData } = await supabase.from('loyalty_cards').select('*, customers(id, email, nombre)').eq('restaurant_id', rest.id).order('actualizado_en', { ascending: false })
+      setClientes(clientesData || [])
       setCargando(false)
     }
     cargarDatos()
   }, [slug])
+
+  async function verFichaCliente(cliente: any) {
+    setClienteSeleccionado(cliente)
+    const { data: h } = await supabase
+      .from('stamp_events')
+      .select('*')
+      .eq('card_id', cliente.id)
+      .order('creado_en', { ascending: false })
+    setHistorial(h || [])
+  }
 
   async function guardarCambios() {
     setGuardando(true)
@@ -63,7 +78,6 @@ export default function Dashboard() {
   const botonTexto = restaurante.color_boton_texto || '#000000'
   const primario = restaurante.color_primario || '#ffffff'
 
-  // Detectar si el fondo es claro para ajustar colores secundarios
   const fondoClaro = (() => {
     try {
       const r = parseInt(fondo.slice(1, 3), 16)
@@ -77,6 +91,55 @@ export default function Dashboard() {
   const borde = fondoClaro ? '#e2e8f0' : 'rgba(255,255,255,0.15)'
   const bordeClaro = fondoClaro ? '#f1f5f9' : 'rgba(255,255,255,0.08)'
 
+  if (clienteSeleccionado) return (
+    <main className="min-h-screen p-6 pb-24" style={{ background: fondo }}>
+      <div className="max-w-sm mx-auto">
+        <button onClick={() => setClienteSeleccionado(null)} className="mb-6 text-xs tracking-widest uppercase" style={{ color: textoSec }}>
+          ← Volver
+        </button>
+
+        <div className="mb-8">
+          <p className="text-xs tracking-widest uppercase mb-2" style={{ color: textoSec }}>Ficha de cliente</p>
+          <h1 className="text-3xl font-bold" style={{ color: texto }}>{clienteSeleccionado.customers?.email || 'Sin email'}</h1>
+        </div>
+
+        <div className="grid grid-cols-3 gap-3 mb-8">
+          <div className="rounded-xl p-4 text-center" style={{ border: `1px solid ${borde}` }}>
+            <p className="text-3xl font-bold" style={{ color: texto }}>{clienteSeleccionado.sellos_actuales}</p>
+            <p className="text-xs tracking-widest uppercase mt-1" style={{ color: textoSec }}>Sellos</p>
+          </div>
+          <div className="rounded-xl p-4 text-center" style={{ border: `1px solid ${borde}` }}>
+            <p className="text-3xl font-bold" style={{ color: texto }}>{clienteSeleccionado.total_canjes}</p>
+            <p className="text-xs tracking-widest uppercase mt-1" style={{ color: textoSec }}>Canjes</p>
+          </div>
+          <div className="rounded-xl p-4 text-center" style={{ border: `1px solid ${borde}` }}>
+            <p className="text-3xl font-bold" style={{ color: texto }}>{historial.filter(h => h.tipo === 'sello').length}</p>
+            <p className="text-xs tracking-widest uppercase mt-1" style={{ color: textoSec }}>Visitas</p>
+          </div>
+        </div>
+
+        <div className="rounded-xl p-5" style={{ border: `1px solid ${borde}` }}>
+          <p className="text-xs tracking-widest uppercase mb-4" style={{ color: textoSec }}>Historial</p>
+          {historial.length === 0 ? (
+            <p className="text-sm" style={{ color: textoSec }}>Sin actividad todavía</p>
+          ) : (
+            historial.map(h => (
+              <div key={h.id} className="flex items-center justify-between py-3" style={{ borderBottom: `1px solid ${bordeClaro}` }}>
+                <div className="flex items-center gap-3">
+                  <span className="text-lg">{h.tipo === 'sello' ? '⬤' : '🎁'}</span>
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: texto }}>{h.tipo === 'sello' ? 'Sello dado' : 'Premio canjeado'}</p>
+                    <p className="text-xs" style={{ color: textoSec }}>{new Date(h.creado_en).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </main>
+  )
+
   return (
     <main className="min-h-screen p-6 pb-24" style={{ background: fondo }}>
       <div className="max-w-sm mx-auto">
@@ -86,9 +149,9 @@ export default function Dashboard() {
           <h1 className="text-4xl font-bold leading-tight" style={{ color: texto }}>{restaurante.nombre}</h1>
         </div>
 
-        <div className="flex gap-2 mb-8">
-          {['inicio', 'reservas', 'ajustes'].map(v => (
-            <button key={v} onClick={() => setVista(v as any)} className="flex-1 py-2 rounded-xl text-xs tracking-widest uppercase transition-colors" style={{ background: vista === v ? primario : 'transparent', color: vista === v ? botonTexto : textoSec, border: vista === v ? 'none' : `1px solid ${borde}` }}>
+        <div className="flex gap-2 mb-8 overflow-x-auto">
+          {['inicio', 'clientes', 'reservas', 'ajustes'].map(v => (
+            <button key={v} onClick={() => setVista(v as any)} className="flex-shrink-0 px-3 py-2 rounded-xl text-xs tracking-widest uppercase transition-colors" style={{ background: vista === v ? primario : 'transparent', color: vista === v ? botonTexto : textoSec, border: vista === v ? 'none' : `1px solid ${borde}` }}>
               {v}
             </button>
           ))}
@@ -119,6 +182,27 @@ export default function Dashboard() {
               <button onClick={() => setVista('reservas')} className="w-full mt-3 text-xs tracking-widest uppercase" style={{ color: textoSec }}>Ver todas →</button>
             </div>
           </>
+        )}
+
+        {vista === 'clientes' && (
+          <div>
+            <p className="text-xs tracking-widest uppercase mb-4" style={{ color: textoSec }}>Todos los clientes</p>
+            {clientes.length === 0 ? (
+              <p className="text-sm" style={{ color: textoSec }}>No hay clientes todavía</p>
+            ) : (
+              clientes.map(c => (
+                <button key={c.id} onClick={() => verFichaCliente(c)} className="w-full rounded-xl p-4 mb-3 text-left transition-colors" style={{ border: `1px solid ${borde}` }}>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="font-medium" style={{ color: texto }}>{c.customers?.email || 'Sin email'}</p>
+                      <p className="text-sm mt-1" style={{ color: textoSec }}>{c.sellos_actuales} de {restaurante.sellos_necesarios} sellos · {c.total_canjes} canjes</p>
+                    </div>
+                    <span style={{ color: textoSec }}>→</span>
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
         )}
 
         {vista === 'reservas' && (
