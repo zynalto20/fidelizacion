@@ -171,7 +171,7 @@ export default function AdminPanel() {
           </button>
         )}
 
-        {escaneando && (
+        {escaneando && !cargando && (
           <div className="mb-6">
             <Scanner onScan={handleScan} />
             <button
