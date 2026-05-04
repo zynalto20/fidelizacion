@@ -4,15 +4,13 @@ import { useEffect, useRef, useState } from 'react'
 export default function Scanner({ onScan }: { onScan: (result: string) => void }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [error, setError] = useState('')
-  const [activo, setActivo] = useState(false)
-  const readerRef = useRef<any>(null)
+  const escaneadoRef = useRef(false)
 
   useEffect(() => {
     async function iniciar() {
       try {
         const { BrowserQRCodeReader } = await import('@zxing/browser')
         const reader = new BrowserQRCodeReader()
-        readerRef.current = reader
 
         const devices = await BrowserQRCodeReader.listVideoInputDevices()
         const deviceId = devices[devices.length - 1]?.deviceId
@@ -20,24 +18,19 @@ export default function Scanner({ onScan }: { onScan: (result: string) => void }
         await reader.decodeFromVideoDevice(
           deviceId,
           videoRef.current!,
-          (result, error) => {
-            if (result) {
+          (result) => {
+            if (result && !escaneadoRef.current) {
+              escaneadoRef.current = true
               onScan(result.getText())
-              readerRef.current = null
             }
           }
         )
-        setActivo(true)
       } catch (e) {
         setError('No se pudo acceder a la cámara')
       }
     }
 
     iniciar()
-
-    return () => {
-      readerRef.current?.reset()
-    }
   }, [])
 
   return (
