@@ -14,6 +14,7 @@ export default function Dashboard() {
   const [mensaje, setMensaje] = useState('')
   const [nuevoPin, setNuevoPin] = useState('')
   const [nuevaRecompensa, setNuevaRecompensa] = useState('')
+  const [colores, setColores] = useState<any>({})
   const [vista, setVista] = useState<'inicio' | 'reservas' | 'ajustes'>('inicio')
 
   useEffect(() => {
@@ -33,6 +34,13 @@ export default function Dashboard() {
       setRestaurante(rest)
       setNuevoPin(rest.pin)
       setNuevaRecompensa(rest.recompensa)
+      setColores({
+        color_fondo: rest.color_fondo || '#000000',
+        color_texto: rest.color_texto || '#ffffff',
+        color_primario: rest.color_primario || '#ffffff',
+        color_boton: rest.color_boton || '#ffffff',
+        color_boton_texto: rest.color_boton_texto || '#000000',
+      })
 
       const { count: clientes } = await supabase
         .from('loyalty_cards')
@@ -69,7 +77,7 @@ export default function Dashboard() {
     setMensaje('')
     await supabase
       .from('restaurants')
-      .update({ pin: nuevoPin, recompensa: nuevaRecompensa })
+      .update({ pin: nuevoPin, recompensa: nuevaRecompensa, ...colores })
       .eq('id', restaurante.id)
     setMensaje('✓ Cambios guardados')
     setGuardando(false)
@@ -98,7 +106,6 @@ export default function Dashboard() {
           <h1 className="text-white text-4xl font-bold leading-tight">{restaurante.nombre}</h1>
         </div>
 
-        {/* Navegación */}
         <div className="flex gap-2 mb-8">
           {['inicio', 'reservas', 'ajustes'].map(v => (
             <button
@@ -111,7 +118,6 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {/* Vista inicio */}
         {vista === 'inicio' && (
           <>
             <div className="grid grid-cols-3 gap-3 mb-8">
@@ -148,7 +154,6 @@ export default function Dashboard() {
           </>
         )}
 
-        {/* Vista reservas */}
         {vista === 'reservas' && (
           <div>
             <p className="text-zinc-500 text-xs tracking-widest uppercase mb-4">Todas las reservas</p>
@@ -196,7 +201,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Vista ajustes */}
         {vista === 'ajustes' && (
           <div>
             <div className="mb-6">
@@ -209,7 +213,7 @@ export default function Dashboard() {
               />
             </div>
 
-            <div className="mb-8">
+            <div className="mb-6">
               <p className="text-zinc-500 text-xs tracking-widest uppercase mb-3">Premio al completar</p>
               <input
                 type="text"
@@ -217,6 +221,30 @@ export default function Dashboard() {
                 onChange={(e) => setNuevaRecompensa(e.target.value)}
                 className="w-full bg-transparent border border-zinc-700 rounded-xl px-4 py-4 text-white focus:outline-none focus:border-white transition-colors"
               />
+            </div>
+
+            <p className="text-zinc-500 text-xs tracking-widest uppercase mb-4">Colores</p>
+            <div className="grid grid-cols-2 gap-3 mb-8">
+              {[
+                { label: 'Fondo', key: 'color_fondo' },
+                { label: 'Texto', key: 'color_texto' },
+                { label: 'Primario', key: 'color_primario' },
+                { label: 'Botón', key: 'color_boton' },
+                { label: 'Texto botón', key: 'color_boton_texto' },
+              ].map(({ label, key }) => (
+                <div key={key} className="border border-zinc-800 rounded-xl p-3">
+                  <p className="text-zinc-500 text-xs tracking-widest uppercase mb-2">{label}</p>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={colores[key] || '#000000'}
+                      onChange={(e) => setColores({ ...colores, [key]: e.target.value })}
+                      className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent"
+                    />
+                    <span className="text-zinc-400 text-xs font-mono">{colores[key]}</span>
+                  </div>
+                </div>
+              ))}
             </div>
 
             <button
