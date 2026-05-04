@@ -4,44 +4,26 @@ import { useEffect, useRef, useState } from 'react'
 export default function Scanner({ onScan }: { onScan: (result: string) => void }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [error, setError] = useState('')
-  const streamRef = useRef<MediaStream | null>(null)
   const escaneadoRef = useRef(false)
 
-  function pararCamara() {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => t.stop())
-      streamRef.current = null
-    }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null
-    }
-  }
-
   useEffect(() => {
-    let controlsRef: any = null
+    let controls: any = null
 
     async function iniciar() {
       try {
         const { BrowserQRCodeReader } = await import('@zxing/browser')
         const codeReader = new BrowserQRCodeReader()
 
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' }
-        })
-        streamRef.current = stream
+        const devices = await BrowserQRCodeReader.listVideoInputDevices()
+        const deviceId = devices[devices.length - 1]?.deviceId
 
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream
-        }
-
-        controlsRef = await codeReader.decodeFromStream(
-          stream,
+        controls = await codeReader.decodeFromVideoDevice(
+          deviceId,
           videoRef.current!,
-          (result, err, controls) => {
+          (result) => {
             if (result && !escaneadoRef.current) {
               escaneadoRef.current = true
-              controls.stop()
-              pararCamara()
+              controls?.stop()
               onScan(result.getText())
             }
           }
@@ -54,8 +36,7 @@ export default function Scanner({ onScan }: { onScan: (result: string) => void }
     iniciar()
 
     return () => {
-      if (controlsRef) controlsRef.stop()
-      pararCamara()
+      controls?.stop()
     }
   }, [])
 
