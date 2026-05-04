@@ -51,6 +51,13 @@ export default function Dashboard() {
     setReservas(reservas.map(r => r.id === id ? { ...r, estado } : r))
   }
 
+  function rgba(hex: string, opacity: number) {
+    const r = parseInt(hex.slice(1, 3), 16)
+    const g = parseInt(hex.slice(3, 5), 16)
+    const b = parseInt(hex.slice(5, 7), 16)
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`
+  }
+
   if (cargando) return (
     <div className="min-h-screen bg-black flex items-center justify-center">
       <p className="text-white text-sm tracking-widest uppercase">Cargando</p>
@@ -68,13 +75,13 @@ export default function Dashboard() {
       <div className="max-w-sm mx-auto">
         <div className="mb-8 pt-6">
           {restaurante.logo_url && <img src={restaurante.logo_url} alt={restaurante.nombre} className="h-12 object-contain mb-6" />}
-          <p className="text-xs tracking-widest uppercase mb-2" style={{ color: `${texto}60` }}>Dashboard</p>
+          <p className="text-xs tracking-widest uppercase mb-2" style={{ color: rgba(texto, 0.5) }}>Dashboard</p>
           <h1 className="text-4xl font-bold leading-tight" style={{ color: texto }}>{restaurante.nombre}</h1>
         </div>
 
         <div className="flex gap-2 mb-8">
           {['inicio', 'reservas', 'ajustes'].map(v => (
-            <button key={v} onClick={() => setVista(v as any)} className="flex-1 py-2 rounded-xl text-xs tracking-widest uppercase transition-colors" style={{ background: vista === v ? primario : 'transparent', color: vista === v ? botonTexto : `${texto}60`, border: vista === v ? 'none' : `1px solid ${texto}30` }}>
+            <button key={v} onClick={() => setVista(v as any)} className="flex-1 py-2 rounded-xl text-xs tracking-widest uppercase transition-colors" style={{ background: vista === v ? primario : 'transparent', color: vista === v ? botonTexto : rgba(texto, 0.5), border: vista === v ? 'none' : `1px solid ${rgba(texto, 0.2)}` }}>
               {v}
             </button>
           ))}
@@ -84,49 +91,49 @@ export default function Dashboard() {
           <>
             <div className="grid grid-cols-3 gap-3 mb-8">
               {[{ label: 'Clientes', value: stats.clientes }, { label: 'Sellos', value: stats.sellos }, { label: 'Canjes', value: stats.canjes }].map(({ label, value }) => (
-                <div key={label} className="rounded-xl p-4 text-center" style={{ border: `1px solid ${texto}20` }}>
+                <div key={label} className="rounded-xl p-4 text-center" style={{ border: `1px solid ${rgba(texto, 0.15)}` }}>
                   <p className="text-3xl font-bold" style={{ color: texto }}>{value}</p>
-                  <p className="text-xs tracking-widest uppercase mt-1" style={{ color: `${texto}50` }}>{label}</p>
+                  <p className="text-xs tracking-widest uppercase mt-1" style={{ color: rgba(texto, 0.5) }}>{label}</p>
                 </div>
               ))}
             </div>
-            <div className="rounded-xl p-5 mb-4" style={{ border: `1px solid ${texto}20` }}>
-              <p className="text-xs tracking-widest uppercase mb-3" style={{ color: `${texto}50` }}>Próximas reservas</p>
+            <div className="rounded-xl p-5 mb-4" style={{ border: `1px solid ${rgba(texto, 0.15)}` }}>
+              <p className="text-xs tracking-widest uppercase mb-3" style={{ color: rgba(texto, 0.5) }}>Próximas reservas</p>
               {reservas.filter(r => r.estado !== 'cancelada').slice(0, 3).length === 0 ? (
-                <p className="text-sm" style={{ color: `${texto}40` }}>No hay reservas próximas</p>
+                <p className="text-sm" style={{ color: rgba(texto, 0.4) }}>No hay reservas próximas</p>
               ) : (
                 reservas.filter(r => r.estado !== 'cancelada').slice(0, 3).map(r => (
-                  <div key={r.id} className="py-3" style={{ borderBottom: `1px solid ${texto}10` }}>
+                  <div key={r.id} className="py-3" style={{ borderBottom: `1px solid ${rgba(texto, 0.1)}` }}>
                     <p className="font-medium" style={{ color: texto }}>{r.customer_name}</p>
-                    <p className="text-sm" style={{ color: `${texto}50` }}>{r.fecha} · {r.hora} · {r.servicio}</p>
+                    <p className="text-sm" style={{ color: rgba(texto, 0.5) }}>{r.fecha} · {r.hora} · {r.servicio}</p>
                   </div>
                 ))
               )}
-              <button onClick={() => setVista('reservas')} className="w-full mt-3 text-xs tracking-widest uppercase" style={{ color: `${texto}40` }}>Ver todas →</button>
+              <button onClick={() => setVista('reservas')} className="w-full mt-3 text-xs tracking-widest uppercase" style={{ color: rgba(texto, 0.4) }}>Ver todas →</button>
             </div>
           </>
         )}
 
         {vista === 'reservas' && (
           <div>
-            <p className="text-xs tracking-widest uppercase mb-4" style={{ color: `${texto}60` }}>Todas las reservas</p>
+            <p className="text-xs tracking-widest uppercase mb-4" style={{ color: rgba(texto, 0.5) }}>Todas las reservas</p>
             {reservas.length === 0 ? (
-              <p className="text-sm" style={{ color: `${texto}40` }}>No hay reservas todavía</p>
+              <p className="text-sm" style={{ color: rgba(texto, 0.4) }}>No hay reservas todavía</p>
             ) : (
               reservas.map(r => (
-                <div key={r.id} className="rounded-xl p-4 mb-3" style={{ border: `1px solid ${texto}20` }}>
+                <div key={r.id} className="rounded-xl p-4 mb-3" style={{ border: `1px solid ${rgba(texto, 0.15)}` }}>
                   <div className="flex justify-between items-start mb-2">
                     <div>
                       <p className="font-medium" style={{ color: texto }}>{r.customer_name}</p>
-                      <p className="text-sm" style={{ color: `${texto}50` }}>{r.customer_email}</p>
+                      <p className="text-sm" style={{ color: rgba(texto, 0.5) }}>{r.customer_email}</p>
                     </div>
                     <span className={`text-xs px-2 py-1 rounded-full ${r.estado === 'confirmada' ? 'bg-green-900 text-green-400' : r.estado === 'cancelada' ? 'bg-red-900 text-red-400' : 'bg-zinc-800 text-zinc-400'}`}>{r.estado}</span>
                   </div>
-                  <p className="text-sm mb-3" style={{ color: `${texto}40` }}>{r.fecha} · {r.hora} · {r.servicio}</p>
-                  {r.notas && <p className="text-xs mb-3" style={{ color: `${texto}30` }}>"{r.notas}"</p>}
+                  <p className="text-sm mb-3" style={{ color: rgba(texto, 0.4) }}>{r.fecha} · {r.hora} · {r.servicio}</p>
+                  {r.notas && <p className="text-xs mb-3" style={{ color: rgba(texto, 0.3) }}>"{r.notas}"</p>}
                   <div className="flex gap-2">
                     {r.estado !== 'confirmada' && <button onClick={() => cambiarEstadoReserva(r.id, 'confirmada')} className="flex-1 text-xs font-semibold rounded-lg py-2" style={{ background: boton, color: botonTexto }}>Confirmar</button>}
-                    {r.estado !== 'cancelada' && <button onClick={() => cambiarEstadoReserva(r.id, 'cancelada')} className="flex-1 text-xs font-semibold rounded-lg py-2" style={{ border: `1px solid ${texto}30`, color: `${texto}60`, background: 'transparent' }}>Cancelar</button>}
+                    {r.estado !== 'cancelada' && <button onClick={() => cambiarEstadoReserva(r.id, 'cancelada')} className="flex-1 text-xs font-semibold rounded-lg py-2" style={{ border: `1px solid ${rgba(texto, 0.2)}`, color: rgba(texto, 0.5), background: 'transparent' }}>Cancelar</button>}
                   </div>
                 </div>
               ))
@@ -137,21 +144,21 @@ export default function Dashboard() {
         {vista === 'ajustes' && (
           <div>
             <div className="mb-6">
-              <p className="text-xs tracking-widest uppercase mb-3" style={{ color: `${texto}60` }}>PIN para dar sello</p>
-              <input type="number" value={nuevoPin} onChange={(e) => setNuevoPin(e.target.value)} className="w-full bg-transparent rounded-xl px-4 py-4 focus:outline-none" style={{ border: `1px solid ${texto}30`, color: texto }} />
+              <p className="text-xs tracking-widest uppercase mb-3" style={{ color: rgba(texto, 0.5) }}>PIN para dar sello</p>
+              <input type="number" value={nuevoPin} onChange={(e) => setNuevoPin(e.target.value)} className="w-full bg-transparent rounded-xl px-4 py-4 focus:outline-none" style={{ border: `1px solid ${rgba(texto, 0.2)}`, color: texto }} />
             </div>
             <div className="mb-6">
-              <p className="text-xs tracking-widest uppercase mb-3" style={{ color: `${texto}60` }}>Premio al completar</p>
-              <input type="text" value={nuevaRecompensa} onChange={(e) => setNuevaRecompensa(e.target.value)} className="w-full bg-transparent rounded-xl px-4 py-4 focus:outline-none" style={{ border: `1px solid ${texto}30`, color: texto }} />
+              <p className="text-xs tracking-widest uppercase mb-3" style={{ color: rgba(texto, 0.5) }}>Premio al completar</p>
+              <input type="text" value={nuevaRecompensa} onChange={(e) => setNuevaRecompensa(e.target.value)} className="w-full bg-transparent rounded-xl px-4 py-4 focus:outline-none" style={{ border: `1px solid ${rgba(texto, 0.2)}`, color: texto }} />
             </div>
-            <p className="text-xs tracking-widest uppercase mb-4" style={{ color: `${texto}60` }}>Colores</p>
+            <p className="text-xs tracking-widest uppercase mb-4" style={{ color: rgba(texto, 0.5) }}>Colores</p>
             <div className="grid grid-cols-2 gap-3 mb-8">
               {[{ label: 'Fondo', key: 'color_fondo' }, { label: 'Texto', key: 'color_texto' }, { label: 'Primario', key: 'color_primario' }, { label: 'Botón', key: 'color_boton' }, { label: 'Texto botón', key: 'color_boton_texto' }].map(({ label, key }) => (
-                <div key={key} className="rounded-xl p-3" style={{ border: `1px solid ${texto}20` }}>
-                  <p className="text-xs tracking-widest uppercase mb-2" style={{ color: `${texto}50` }}>{label}</p>
+                <div key={key} className="rounded-xl p-3" style={{ border: `1px solid ${rgba(texto, 0.15)}` }}>
+                  <p className="text-xs tracking-widest uppercase mb-2" style={{ color: rgba(texto, 0.5) }}>{label}</p>
                   <div className="flex items-center gap-2">
                     <input type="color" value={colores[key] || '#000000'} onChange={(e) => setColores({ ...colores, [key]: e.target.value })} className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent" />
-                    <span className="text-xs font-mono" style={{ color: `${texto}40` }}>{colores[key]}</span>
+                    <span className="text-xs font-mono" style={{ color: rgba(texto, 0.4) }}>{colores[key]}</span>
                   </div>
                 </div>
               ))}
@@ -160,7 +167,7 @@ export default function Dashboard() {
               {guardando ? 'Guardando...' : 'Guardar cambios'}
             </button>
             {mensaje && <p className="text-sm text-center mb-4" style={{ color: primario }}>{mensaje}</p>}
-            <button onClick={() => supabase.auth.signOut().then(() => router.push('/dashboard/login'))} className="w-full mt-2 text-xs tracking-widest uppercase" style={{ color: `${texto}30` }}>
+            <button onClick={() => supabase.auth.signOut().then(() => router.push('/dashboard/login'))} className="w-full mt-2 text-xs tracking-widest uppercase" style={{ color: rgba(texto, 0.3) }}>
               Cerrar sesión
             </button>
           </div>
