@@ -117,7 +117,8 @@ export default function Dashboard() {
     if (vehiculoSeleccionado?.id === id) setVehiculoSeleccionado(null)
   }
 
-  async function crearServicio() {
+async function crearServicio() {
+    console.log('Creando servicio:', { ...servicioForm, vehicle_id: vehiculoSeleccionado?.id, restaurant_id: restaurante?.id })    
     const { data } = await supabase.from('vehicle_services').insert({
       ...servicioForm,
       km_servicio: parseInt(servicioForm.km_servicio) || null,
