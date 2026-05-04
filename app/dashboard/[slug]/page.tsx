@@ -12,6 +12,10 @@ export default function Dashboard() {
   const [clientes, setClientes] = useState<any[]>([])
   const [clienteSeleccionado, setClienteSeleccionado] = useState<any>(null)
   const [historial, setHistorial] = useState<any[]>([])
+  const [creandoCliente, setCreandoCliente] = useState(false)
+  const [nuevoEmail, setNuevoEmail] = useState('')
+  const [creando, setCreando] = useState(false)
+  const [mensajeCliente, setMensajeCliente] = useState('')
   const [cargando, setCargando] = useState(true)
   const [guardando, setGuardando] = useState(false)
   const [mensaje, setMensaje] = useState('')
@@ -45,12 +49,38 @@ export default function Dashboard() {
 
   async function verFichaCliente(cliente: any) {
     setClienteSeleccionado(cliente)
-    const { data: h } = await supabase
-      .from('stamp_events')
-      .select('*')
-      .eq('card_id', cliente.id)
-      .order('creado_en', { ascending: false })
+    const { data: h } = await supabase.from('stamp_events').select('*').eq('card_id', cliente.id).order('creado_en', { ascending: false })
     setHistorial(h || [])
+  }
+
+  async function crearCliente() {
+    setCreando(true)
+    setMensajeCliente('')
+    const { data: clienteExiste } = await supabase.from('customers').select('*').eq('email', nuevoEmail).single()
+    let customerId = clienteExiste?.id
+    if (!customerId) {
+      const { data: nuevo } = await supabase.from('customers').insert({ email: nuevoEmail }).select().single()
+      customerId = nuevo?.id
+    }
+    if (!customerId) { setMensajeCliente('Error al crear el cliente'); setCreando(false); return }
+    const { error } = await supabase.from('loyalty_cards').insert({ restaurant_id: restaurante.id, customer_id: customerId, sellos_actuales: 0 })
+    if (error) {
+      setMensajeCliente('Este cliente ya existe')
+    } else {
+      setMensajeCliente('✓ Cliente añadido')
+      setNuevoEmail('')
+      setCreandoCliente(false)
+      const { data: clientesData } = await supabase.from('loyalty_cards').select('*, customers(id, email, nombre)').eq('restaurant_id', restaurante.id).order('actualizado_en', { ascending: false })
+      setClientes(clientesData || [])
+    }
+    setCreando(false)
+  }
+
+  async function eliminarCliente(c: any) {
+    if (!confirm('¿Eliminar este cliente? Se borrarán sus sellos y historial.')) return
+    await supabase.from('stamp_events').delete().eq('card_id', c.id)
+    await supabase.from('loyalty_cards').delete().eq('id', c.id)
+    setClientes(clientes.filter(cl => cl.id !== c.id))
   }
 
   async function guardarCambios() {
@@ -94,43 +124,30 @@ export default function Dashboard() {
   if (clienteSeleccionado) return (
     <main className="min-h-screen p-6 pb-24" style={{ background: fondo }}>
       <div className="max-w-sm mx-auto">
-        <button onClick={() => setClienteSeleccionado(null)} className="mb-6 text-xs tracking-widest uppercase" style={{ color: textoSec }}>
-          ← Volver
-        </button>
-
+        <button onClick={() => setClienteSeleccionado(null)} className="mb-6 text-xs tracking-widest uppercase" style={{ color: textoSec }}>← Volver</button>
         <div className="mb-8">
           <p className="text-xs tracking-widest uppercase mb-2" style={{ color: textoSec }}>Ficha de cliente</p>
-          <h1 className="text-3xl font-bold" style={{ color: texto }}>{clienteSeleccionado.customers?.email || 'Sin email'}</h1>
+          <h1 className="text-2xl font-bold break-all" style={{ color: texto }}>{clienteSeleccionado.customers?.email || 'Sin email'}</h1>
         </div>
-
         <div className="grid grid-cols-3 gap-3 mb-8">
-          <div className="rounded-xl p-4 text-center" style={{ border: `1px solid ${borde}` }}>
-            <p className="text-3xl font-bold" style={{ color: texto }}>{clienteSeleccionado.sellos_actuales}</p>
-            <p className="text-xs tracking-widest uppercase mt-1" style={{ color: textoSec }}>Sellos</p>
-          </div>
-          <div className="rounded-xl p-4 text-center" style={{ border: `1px solid ${borde}` }}>
-            <p className="text-3xl font-bold" style={{ color: texto }}>{clienteSeleccionado.total_canjes}</p>
-            <p className="text-xs tracking-widest uppercase mt-1" style={{ color: textoSec }}>Canjes</p>
-          </div>
-          <div className="rounded-xl p-4 text-center" style={{ border: `1px solid ${borde}` }}>
-            <p className="text-3xl font-bold" style={{ color: texto }}>{historial.filter(h => h.tipo === 'sello').length}</p>
-            <p className="text-xs tracking-widest uppercase mt-1" style={{ color: textoSec }}>Visitas</p>
-          </div>
+          {[{ label: 'Sellos', value: clienteSeleccionado.sellos_actuales }, { label: 'Canjes', value: clienteSeleccionado.total_canjes }, { label: 'Visitas', value: historial.filter(h => h.tipo === 'sello').length }].map(({ label, value }) => (
+            <div key={label} className="rounded-xl p-4 text-center" style={{ border: `1px solid ${borde}` }}>
+              <p className="text-3xl font-bold" style={{ color: texto }}>{value}</p>
+              <p className="text-xs tracking-widest uppercase mt-1" style={{ color: textoSec }}>{label}</p>
+            </div>
+          ))}
         </div>
-
         <div className="rounded-xl p-5" style={{ border: `1px solid ${borde}` }}>
           <p className="text-xs tracking-widest uppercase mb-4" style={{ color: textoSec }}>Historial</p>
           {historial.length === 0 ? (
             <p className="text-sm" style={{ color: textoSec }}>Sin actividad todavía</p>
           ) : (
             historial.map(h => (
-              <div key={h.id} className="flex items-center justify-between py-3" style={{ borderBottom: `1px solid ${bordeClaro}` }}>
-                <div className="flex items-center gap-3">
-                  <span className="text-lg">{h.tipo === 'sello' ? '⬤' : '🎁'}</span>
-                  <div>
-                    <p className="text-sm font-medium" style={{ color: texto }}>{h.tipo === 'sello' ? 'Sello dado' : 'Premio canjeado'}</p>
-                    <p className="text-xs" style={{ color: textoSec }}>{new Date(h.creado_en).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-                  </div>
+              <div key={h.id} className="flex items-center gap-3 py-3" style={{ borderBottom: `1px solid ${bordeClaro}` }}>
+                <span>{h.tipo === 'sello' ? '⬤' : '🎁'}</span>
+                <div>
+                  <p className="text-sm font-medium" style={{ color: texto }}>{h.tipo === 'sello' ? 'Sello dado' : 'Premio canjeado'}</p>
+                  <p className="text-xs" style={{ color: textoSec }}>{new Date(h.creado_en).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                 </div>
               </div>
             ))
@@ -186,20 +203,34 @@ export default function Dashboard() {
 
         {vista === 'clientes' && (
           <div>
-            <p className="text-xs tracking-widest uppercase mb-4" style={{ color: textoSec }}>Todos los clientes</p>
+            <div className="flex justify-between items-center mb-4">
+              <p className="text-xs tracking-widest uppercase" style={{ color: textoSec }}>Todos los clientes</p>
+              <button onClick={() => setCreandoCliente(true)} className="text-xs font-semibold px-3 py-2 rounded-lg" style={{ background: boton, color: botonTexto }}>+ Añadir</button>
+            </div>
+            {creandoCliente && (
+              <div className="rounded-xl p-4 mb-4" style={{ border: `1px solid ${borde}` }}>
+                <p className="text-xs tracking-widest uppercase mb-3" style={{ color: textoSec }}>Nuevo cliente</p>
+                <input type="email" value={nuevoEmail} onChange={(e) => setNuevoEmail(e.target.value)} placeholder="email@cliente.com" className="w-full bg-transparent rounded-xl px-4 py-3 mb-3 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
+                <div className="flex gap-2">
+                  <button onClick={crearCliente} disabled={!nuevoEmail || creando} className="flex-1 text-xs font-semibold rounded-lg py-2 disabled:opacity-30" style={{ background: boton, color: botonTexto }}>{creando ? '...' : 'Crear'}</button>
+                  <button onClick={() => { setCreandoCliente(false); setNuevoEmail('') }} className="flex-1 text-xs font-semibold rounded-lg py-2" style={{ border: `1px solid ${borde}`, color: textoSec, background: 'transparent' }}>Cancelar</button>
+                </div>
+                {mensajeCliente && <p className="text-xs mt-2" style={{ color: primario }}>{mensajeCliente}</p>}
+              </div>
+            )}
             {clientes.length === 0 ? (
               <p className="text-sm" style={{ color: textoSec }}>No hay clientes todavía</p>
             ) : (
               clientes.map(c => (
-                <button key={c.id} onClick={() => verFichaCliente(c)} className="w-full rounded-xl p-4 mb-3 text-left transition-colors" style={{ border: `1px solid ${borde}` }}>
+                <div key={c.id} className="rounded-xl p-4 mb-3" style={{ border: `1px solid ${borde}` }}>
                   <div className="flex justify-between items-center">
-                    <div>
+                    <button onClick={() => verFichaCliente(c)} className="flex-1 text-left">
                       <p className="font-medium" style={{ color: texto }}>{c.customers?.email || 'Sin email'}</p>
                       <p className="text-sm mt-1" style={{ color: textoSec }}>{c.sellos_actuales} de {restaurante.sellos_necesarios} sellos · {c.total_canjes} canjes</p>
-                    </div>
-                    <span style={{ color: textoSec }}>→</span>
+                    </button>
+                    <button onClick={() => eliminarCliente(c)} className="ml-3 text-xs px-2 py-1 rounded-lg" style={{ color: '#ef4444', border: '1px solid #fca5a5' }}>Eliminar</button>
                   </div>
-                </button>
+                </div>
               ))
             )}
           </div>
