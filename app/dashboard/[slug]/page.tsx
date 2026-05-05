@@ -82,10 +82,14 @@ export default function Dashboard() {
     setHistorial(h || [])
     const { data: v } = await supabase.from('vehicles').select('*').eq('customer_id', cliente.customers?.id).order('creado_en', { ascending: false })
     setVehiculos(v || [])
-    const { data: svcs } = await supabase.from('vehicle_services').select('tipo_servicio').eq('restaurant_id', restaurante.id).in('vehicle_id', v?.map((vv: any) => vv.id) || [])
-    const conteo: any = {}
-    svcs?.forEach(s => { conteo[s.tipo_servicio] = (conteo[s.tipo_servicio] || 0) + 1 })
-    setStatsCliente(conteo)
+    if (v && v.length > 0) {
+      const { data: svcs } = await supabase.from('vehicle_services').select('tipo_servicio').eq('restaurant_id', restaurante.id).in('vehicle_id', v.map((vv: any) => vv.id))
+      const conteo: any = {}
+      svcs?.forEach(s => { conteo[s.tipo_servicio] = (conteo[s.tipo_servicio] || 0) + 1 })
+      setStatsCliente(conteo)
+    } else {
+      setStatsCliente({})
+    }
   }
 
   async function verVehiculo(v: any) {
@@ -117,8 +121,7 @@ export default function Dashboard() {
     if (vehiculoSeleccionado?.id === id) setVehiculoSeleccionado(null)
   }
 
-async function crearServicio() {
-    console.log('Creando servicio:', { ...servicioForm, vehicle_id: vehiculoSeleccionado?.id, restaurant_id: restaurante?.id })    
+  async function crearServicio() {
     const { data } = await supabase.from('vehicle_services').insert({
       ...servicioForm,
       km_servicio: parseInt(servicioForm.km_servicio) || null,
@@ -126,9 +129,11 @@ async function crearServicio() {
       vehicle_id: vehiculoSeleccionado.id,
       restaurant_id: restaurante.id
     }).select().single()
-    if (data) setServiciosVehiculo([data, ...serviciosVehiculo])
-    setCreandoServicio(false)
-    setServicioForm({ tipo_servicio: '', descripcion: '', fecha_servicio: '', km_servicio: '', proximo_servicio_fecha: '', proximo_servicio_km: '' })
+    if (data) {
+      setServiciosVehiculo([data, ...serviciosVehiculo])
+      setCreandoServicio(false)
+      setServicioForm({ tipo_servicio: '', descripcion: '', fecha_servicio: '', km_servicio: '', proximo_servicio_fecha: '', proximo_servicio_km: '' })
+    }
   }
 
   async function crearCliente() {
@@ -211,7 +216,7 @@ async function crearServicio() {
 
         <div className="flex justify-between items-center mb-4">
           <p className="text-xs tracking-widest uppercase" style={{ color: textoSec }}>Historial de servicios</p>
-          <button onClick={() => setCreandoServicio(true)} className="text-xs font-semibold px-3 py-2 rounded-lg" style={{ background: boton, color: botonTexto }}>+ Añadir</button>
+          <button onClick={() => { setCreandoServicio(true) }} className="text-xs font-semibold px-3 py-2 rounded-lg" style={{ background: boton, color: botonTexto }}>+ Añadir</button>
         </div>
 
         {creandoServicio && (
@@ -253,7 +258,7 @@ async function crearServicio() {
             </div>
             <div className="flex gap-2">
               <button onClick={crearServicio} disabled={!servicioForm.tipo_servicio} className="flex-1 text-xs font-semibold rounded-lg py-2 disabled:opacity-30" style={{ background: boton, color: botonTexto }}>Guardar</button>
-              <button onClick={() => setCreandoServicio(false)} className="flex-1 text-xs font-semibold rounded-lg py-2" style={{ border: `1px solid ${borde}`, color: textoSec, background: 'transparent' }}>Cancelar</button>
+              <button onClick={() => { setCreandoServicio(false); setServicioForm({ tipo_servicio: '', descripcion: '', fecha_servicio: '', km_servicio: '', proximo_servicio_fecha: '', proximo_servicio_km: '' }) }} className="flex-1 text-xs font-semibold rounded-lg py-2" style={{ border: `1px solid ${borde}`, color: textoSec, background: 'transparent' }}>Cancelar</button>
             </div>
           </div>
         )}
@@ -293,7 +298,6 @@ async function crearServicio() {
           {clienteSeleccionado.customers?.nombre && <p className="text-sm mt-1" style={{ color: textoSec }}>{clienteSeleccionado.customers?.email}</p>}
         </div>
 
-        {/* Stats del cliente */}
         <div className="grid grid-cols-3 gap-3 mb-4">
           {[{ label: 'Sellos', value: clienteSeleccionado.sellos_actuales }, { label: 'Canjes', value: clienteSeleccionado.total_canjes }, { label: 'Visitas', value: historial.filter(h => h.tipo === 'sello').length }].map(({ label, value }) => (
             <div key={label} className="rounded-xl p-4 text-center" style={{ border: `1px solid ${borde}` }}>
@@ -303,7 +307,6 @@ async function crearServicio() {
           ))}
         </div>
 
-        {/* Servicios del cliente */}
         {Object.keys(statsCliente).length > 0 && (
           <div className="rounded-xl p-4 mb-6" style={{ border: `1px solid ${borde}` }}>
             <p className="text-xs tracking-widest uppercase mb-3" style={{ color: textoSec }}>Servicios realizados</p>
@@ -316,7 +319,6 @@ async function crearServicio() {
           </div>
         )}
 
-        {/* Datos personales */}
         <div className="rounded-xl p-5 mb-6" style={{ border: `1px solid ${borde}` }}>
           <div className="flex justify-between items-center mb-4">
             <p className="text-xs tracking-widest uppercase" style={{ color: textoSec }}>Datos personales</p>
@@ -372,7 +374,6 @@ async function crearServicio() {
           )}
         </div>
 
-        {/* Vehículos */}
         <div className="rounded-xl p-5 mb-6" style={{ border: `1px solid ${borde}` }}>
           <div className="flex justify-between items-center mb-4">
             <p className="text-xs tracking-widest uppercase" style={{ color: textoSec }}>Vehículos</p>
@@ -419,7 +420,6 @@ async function crearServicio() {
           )}
         </div>
 
-        {/* Historial sellos */}
         <div className="rounded-xl p-5" style={{ border: `1px solid ${borde}` }}>
           <p className="text-xs tracking-widest uppercase mb-4" style={{ color: textoSec }}>Historial de sellos</p>
           {historial.length === 0 ? (
@@ -467,7 +467,6 @@ async function crearServicio() {
                 </div>
               ))}
             </div>
-
             {Object.keys(statsServicios).length > 0 && (
               <div className="rounded-xl p-5 mb-6" style={{ border: `1px solid ${borde}` }}>
                 <p className="text-xs tracking-widest uppercase mb-3" style={{ color: textoSec }}>Servicios realizados</p>
@@ -479,7 +478,6 @@ async function crearServicio() {
                 ))}
               </div>
             )}
-
             <div className="rounded-xl p-5 mb-4" style={{ border: `1px solid ${borde}` }}>
               <p className="text-xs tracking-widest uppercase mb-3" style={{ color: textoSec }}>Próximas reservas</p>
               {reservas.filter(r => r.estado !== 'cancelada').slice(0, 3).length === 0 ? (
