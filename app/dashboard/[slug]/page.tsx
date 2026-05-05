@@ -38,6 +38,7 @@ export default function Dashboard() {
   const [servicioForm, setServicioForm] = useState({ tipo_servicio: '', descripcion: '', fecha_servicio: '', km_servicio: '', proximo_servicio_fecha: '', proximo_servicio_km: '' })
   const [statsCliente, setStatsCliente] = useState<any>({})
   const [creandoReserva, setCreandoReserva] = useState(false)
+  const [editandoReservaId, setEditandoReservaId] = useState<string | null>(null)
   const [reservaForm, setReservaForm] = useState({ customer_name: '', customer_email: '', customer_phone: '', servicio: '', fecha: '', hora: '', notas: '' })
   const [mesReserva, setMesReserva] = useState(new Date())
 
@@ -129,6 +130,10 @@ export default function Dashboard() {
     setServicioForm({ tipo_servicio: '', descripcion: '', fecha_servicio: '', km_servicio: '', proximo_servicio_fecha: '', proximo_servicio_km: '' })
   }
 
+  function resetReservaForm() {
+    setReservaForm({ customer_name: '', customer_email: '', customer_phone: '', servicio: '', fecha: '', hora: '', notas: '' })
+  }
+
   async function crearServicio() {
     const payload: any = {
       tipo_servicio: servicioForm.tipo_servicio,
@@ -183,8 +188,29 @@ export default function Dashboard() {
     if (data) {
       setReservas([...reservas, data].sort((a, b) => a.fecha > b.fecha ? 1 : -1))
       setCreandoReserva(false)
-      setReservaForm({ customer_name: '', customer_email: '', customer_phone: '', servicio: '', fecha: '', hora: '', notas: '' })
+      resetReservaForm()
     }
+  }
+
+  async function editarReserva() {
+    const payload = {
+      customer_name: reservaForm.customer_name,
+      customer_email: reservaForm.customer_email || null,
+      servicio: reservaForm.servicio || 'General',
+      fecha: reservaForm.fecha,
+      hora: reservaForm.hora,
+      notas: (reservaForm.customer_phone ? `Tel: ${reservaForm.customer_phone}${reservaForm.notas ? ' | ' + reservaForm.notas : ''}` : reservaForm.notas) || null,
+    }
+    await supabase.from('bookings').update(payload).eq('id', editandoReservaId)
+    setReservas(reservas.map(r => r.id === editandoReservaId ? { ...r, ...payload } : r))
+    setEditandoReservaId(null)
+    resetReservaForm()
+  }
+
+  async function eliminarReserva(id: string) {
+    if (!confirm('¿Eliminar esta reserva?')) return
+    await supabase.from('bookings').delete().eq('id', id)
+    setReservas(reservas.filter(r => r.id !== id))
   }
 
   async function crearCliente() {
@@ -294,6 +320,76 @@ export default function Dashboard() {
       </div>
       <div className="flex gap-2">
         <button onClick={onGuardar} disabled={!servicioForm.tipo_servicio} className="flex-1 text-xs font-semibold rounded-lg py-2 disabled:opacity-30" style={{ background: boton, color: botonTexto }}>Guardar</button>
+        <button onClick={onCancelar} className="flex-1 text-xs font-semibold rounded-lg py-2" style={{ border: `1px solid ${borde}`, color: textoSec, background: 'transparent' }}>Cancelar</button>
+      </div>
+    </div>
+  )
+
+  const formReserva = (onGuardar: () => void, onCancelar: () => void, titulo: string) => (
+    <div className="rounded-xl p-4 mb-4" style={{ border: `1px solid ${editandoReservaId ? primario : borde}` }}>
+      <p className="text-xs tracking-widest uppercase mb-3" style={{ color: textoSec }}>{titulo}</p>
+      {[
+        { label: 'Nombre cliente', key: 'customer_name', type: 'text' },
+        { label: 'Email cliente', key: 'customer_email', type: 'email' },
+        { label: 'Teléfono', key: 'customer_phone', type: 'tel' },
+        { label: 'Servicio', key: 'servicio', type: 'text' },
+      ].map(({ label, key, type }) => (
+        <div key={key} className="mb-3">
+          <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>{label}</p>
+          <input type={type} value={reservaForm[key as keyof typeof reservaForm]} onChange={(e) => setReservaForm({ ...reservaForm, [key]: e.target.value })} className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
+        </div>
+      ))}
+      <div className="mb-3">
+        <p className="text-xs tracking-widest uppercase mb-3" style={{ color: textoSec }}>Fecha</p>
+        <div className="flex items-center justify-between mb-3">
+          <button onClick={() => setMesReserva(new Date(mesReserva.getFullYear(), mesReserva.getMonth()-1, 1))} className="text-xl px-2" style={{ color: textoSec }}>‹</button>
+          <p className="text-sm font-medium" style={{ color: texto }}>{['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][mesReserva.getMonth()]} {mesReserva.getFullYear()}</p>
+          <button onClick={() => setMesReserva(new Date(mesReserva.getFullYear(), mesReserva.getMonth()+1, 1))} className="text-xl px-2" style={{ color: textoSec }}>›</button>
+        </div>
+        <div className="grid grid-cols-7 mb-1">
+          {['Lu','Ma','Mi','Ju','Vi','Sá','Do'].map(d => (
+            <div key={d} className="text-center text-xs py-1" style={{ color: textoSec }}>{d}</div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 gap-1 mb-4">
+          {Array.from({ length: (() => { const p = new Date(mesReserva.getFullYear(), mesReserva.getMonth(), 1).getDay(); return p === 0 ? 6 : p - 1 })() }).map((_, i) => <div key={i} />)}
+          {Array.from({ length: new Date(mesReserva.getFullYear(), mesReserva.getMonth()+1, 0).getDate() }).map((_, i) => {
+            const dia = i + 1
+            const hoy = new Date(); hoy.setHours(0,0,0,0)
+            const diaDate = new Date(mesReserva.getFullYear(), mesReserva.getMonth(), dia)
+            const pasado = diaDate < hoy
+            const strDia = `${mesReserva.getFullYear()}-${String(mesReserva.getMonth()+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`
+            const seleccionado = reservaForm.fecha === strDia
+            return (
+              <button key={dia} onClick={() => !pasado && setReservaForm({ ...reservaForm, fecha: strDia })} disabled={pasado}
+                className="aspect-square rounded-full flex items-center justify-center text-xs transition-colors"
+                style={{ background: seleccionado ? primario : 'transparent', color: pasado ? `${texto}20` : seleccionado ? botonTexto : texto, cursor: pasado ? 'not-allowed' : 'pointer' }}>
+                {dia}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+      {reservaForm.fecha && (
+        <div className="mb-3">
+          <p className="text-xs tracking-widest uppercase mb-2" style={{ color: textoSec }}>Hora</p>
+          <div className="grid grid-cols-4 gap-2">
+            {['09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','16:00','16:30','17:00','17:30','18:00','18:30','19:00','19:30'].map(h => (
+              <button key={h} onClick={() => setReservaForm({ ...reservaForm, hora: h })}
+                className="py-2 rounded-lg text-xs font-medium transition-colors"
+                style={{ background: reservaForm.hora === h ? primario : 'transparent', color: reservaForm.hora === h ? botonTexto : texto, border: `1px solid ${reservaForm.hora === h ? primario : `${texto}20`}` }}>
+                {h}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      <div className="mb-4">
+        <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>Notas (opcional)</p>
+        <textarea value={reservaForm.notas} onChange={(e) => setReservaForm({ ...reservaForm, notas: e.target.value })} className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm resize-none h-16" style={{ border: `1px solid ${borde}`, color: texto }} />
+      </div>
+      <div className="flex gap-2">
+        <button onClick={onGuardar} disabled={!reservaForm.customer_name || !reservaForm.fecha || !reservaForm.hora} className="flex-1 text-xs font-semibold rounded-lg py-2 disabled:opacity-30" style={{ background: boton, color: botonTexto }}>Guardar</button>
         <button onClick={onCancelar} className="flex-1 text-xs font-semibold rounded-lg py-2" style={{ border: `1px solid ${borde}`, color: textoSec, background: 'transparent' }}>Cancelar</button>
       </div>
     </div>
@@ -563,13 +659,14 @@ export default function Dashboard() {
             ) : (
               clientes.filter(c => !busqueda || c.customers?.email?.toLowerCase().includes(busqueda.toLowerCase()) || c.customers?.nombre?.toLowerCase().includes(busqueda.toLowerCase())).map(c => (
                 <div key={c.id} className="rounded-xl p-4 mb-3" style={{ border: `1px solid ${borde}` }}>
-                  <div className="flex justify-between items-center">
-                    <button onClick={() => verFichaCliente(c)} className="flex-1 text-left">
-                      <p className="font-medium" style={{ color: texto }}>{c.customers?.nombre ? `${c.customers.nombre} ${c.customers.apellidos || ''}` : c.customers?.email || 'Sin email'}</p>
-                      {c.customers?.nombre && <p className="text-xs mt-0.5" style={{ color: textoSec }}>{c.customers?.email}</p>}
-                      <p className="text-sm mt-1" style={{ color: textoSec }}>{c.sellos_actuales} de {restaurante.sellos_necesarios} sellos · {c.total_canjes} canjes</p>
-                    </button>
-                    <button onClick={() => eliminarCliente(c)} className="ml-3 text-xs px-2 py-1 rounded-lg" style={{ color: '#ef4444', border: '1px solid #fca5a5' }}>Eliminar</button>
+                  <button onClick={() => verFichaCliente(c)} className="w-full text-left mb-3">
+                    <p className="font-medium" style={{ color: texto }}>{c.customers?.nombre ? `${c.customers.nombre} ${c.customers.apellidos || ''}` : c.customers?.email || 'Sin email'}</p>
+                    {c.customers?.nombre && <p className="text-xs mt-0.5" style={{ color: textoSec }}>{c.customers?.email}</p>}
+                    <p className="text-sm mt-1" style={{ color: textoSec }}>{c.sellos_actuales} de {restaurante.sellos_necesarios} sellos · {c.total_canjes} canjes</p>
+                  </button>
+                  <div className="flex gap-2">
+                    <button onClick={() => verFichaCliente(c)} className="flex-1 text-xs font-semibold rounded-lg py-2" style={{ border: `1px solid ${borde}`, color: textoSec, background: 'transparent' }}>Ver ficha</button>
+                    <button onClick={() => eliminarCliente(c)} className="text-xs px-3 py-2 rounded-lg" style={{ color: textoSec, border: `1px solid ${borde}`, background: 'transparent' }}>Eliminar</button>
                   </div>
                 </div>
               ))
@@ -581,82 +678,15 @@ export default function Dashboard() {
           <div>
             <div className="flex justify-between items-center mb-4">
               <p className="text-xs tracking-widest uppercase" style={{ color: textoSec }}>Todas las reservas</p>
-              <button onClick={() => setCreandoReserva(true)} className="text-xs font-semibold px-3 py-2 rounded-lg" style={{ background: boton, color: botonTexto }}>+ Añadir</button>
+              <button onClick={() => { setCreandoReserva(true); setEditandoReservaId(null); resetReservaForm() }} className="text-xs font-semibold px-3 py-2 rounded-lg" style={{ background: boton, color: botonTexto }}>+ Añadir</button>
             </div>
-            {creandoReserva && (
-              <div className="rounded-xl p-4 mb-4" style={{ border: `1px solid ${borde}` }}>
-                <p className="text-xs tracking-widest uppercase mb-3" style={{ color: textoSec }}>Nueva reserva</p>
-                {[
-                  { label: 'Nombre cliente', key: 'customer_name', type: 'text' },
-                  { label: 'Email cliente', key: 'customer_email', type: 'email' },
-                  { label: 'Teléfono', key: 'customer_phone', type: 'tel' },
-                  { label: 'Servicio', key: 'servicio', type: 'text' },
-                ].map(({ label, key, type }) => (
-                  <div key={key} className="mb-3">
-                    <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>{label}</p>
-                    <input type={type} value={reservaForm[key as keyof typeof reservaForm]} onChange={(e) => setReservaForm({ ...reservaForm, [key]: e.target.value })} className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
-                  </div>
-                ))}
-                <div className="mb-3">
-                  <p className="text-xs tracking-widest uppercase mb-3" style={{ color: textoSec }}>Fecha</p>
-                  <div className="flex items-center justify-between mb-3">
-                    <button onClick={() => setMesReserva(new Date(mesReserva.getFullYear(), mesReserva.getMonth()-1, 1))} className="text-xl px-2" style={{ color: textoSec }}>‹</button>
-                    <p className="text-sm font-medium" style={{ color: texto }}>{['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][mesReserva.getMonth()]} {mesReserva.getFullYear()}</p>
-                    <button onClick={() => setMesReserva(new Date(mesReserva.getFullYear(), mesReserva.getMonth()+1, 1))} className="text-xl px-2" style={{ color: textoSec }}>›</button>
-                  </div>
-                  <div className="grid grid-cols-7 mb-1">
-                    {['Lu','Ma','Mi','Ju','Vi','Sá','Do'].map(d => (
-                      <div key={d} className="text-center text-xs py-1" style={{ color: textoSec }}>{d}</div>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-7 gap-1 mb-4">
-                    {Array.from({ length: (() => { const p = new Date(mesReserva.getFullYear(), mesReserva.getMonth(), 1).getDay(); return p === 0 ? 6 : p - 1 })() }).map((_, i) => <div key={i} />)}
-                    {Array.from({ length: new Date(mesReserva.getFullYear(), mesReserva.getMonth()+1, 0).getDate() }).map((_, i) => {
-                      const dia = i + 1
-                      const hoy = new Date(); hoy.setHours(0,0,0,0)
-                      const diaDate = new Date(mesReserva.getFullYear(), mesReserva.getMonth(), dia)
-                      const pasado = diaDate < hoy
-                      const strDia = `${mesReserva.getFullYear()}-${String(mesReserva.getMonth()+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`
-                      const seleccionado = reservaForm.fecha === strDia
-                      return (
-                        <button key={dia} onClick={() => !pasado && setReservaForm({ ...reservaForm, fecha: strDia })} disabled={pasado}
-                          className="aspect-square rounded-full flex items-center justify-center text-xs transition-colors"
-                          style={{ background: seleccionado ? primario : 'transparent', color: pasado ? `${texto}20` : seleccionado ? botonTexto : texto, cursor: pasado ? 'not-allowed' : 'pointer' }}>
-                          {dia}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-                {reservaForm.fecha && (
-                  <div className="mb-3">
-                    <p className="text-xs tracking-widest uppercase mb-2" style={{ color: textoSec }}>Hora</p>
-                    <div className="grid grid-cols-4 gap-2">
-                      {['09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','16:00','16:30','17:00','17:30','18:00','18:30','19:00','19:30'].map(h => (
-                        <button key={h} onClick={() => setReservaForm({ ...reservaForm, hora: h })}
-                          className="py-2 rounded-lg text-xs font-medium transition-colors"
-                          style={{ background: reservaForm.hora === h ? primario : 'transparent', color: reservaForm.hora === h ? botonTexto : texto, border: `1px solid ${reservaForm.hora === h ? primario : `${texto}20`}` }}>
-                          {h}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <div className="mb-4">
-                  <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>Notas (opcional)</p>
-                  <textarea value={reservaForm.notas} onChange={(e) => setReservaForm({ ...reservaForm, notas: e.target.value })} className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm resize-none h-16" style={{ border: `1px solid ${borde}`, color: texto }} />
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={crearReserva} disabled={!reservaForm.customer_name || !reservaForm.fecha || !reservaForm.hora} className="flex-1 text-xs font-semibold rounded-lg py-2 disabled:opacity-30" style={{ background: boton, color: botonTexto }}>Crear</button>
-                  <button onClick={() => { setCreandoReserva(false); setReservaForm({ customer_name: '', customer_email: '', customer_phone: '', servicio: '', fecha: '', hora: '', notas: '' }) }} className="flex-1 text-xs font-semibold rounded-lg py-2" style={{ border: `1px solid ${borde}`, color: textoSec, background: 'transparent' }}>Cancelar</button>
-                </div>
-              </div>
-            )}
+            {editandoReservaId && formReserva(editarReserva, () => { setEditandoReservaId(null); resetReservaForm() }, 'Editar reserva')}
+            {creandoReserva && !editandoReservaId && formReserva(crearReserva, () => { setCreandoReserva(false); resetReservaForm() }, 'Nueva reserva')}
             {reservas.length === 0 ? (
               <p className="text-sm" style={{ color: textoSec }}>No hay reservas todavía</p>
             ) : (
               reservas.map(r => (
-                <div key={r.id} className="rounded-xl p-4 mb-3" style={{ border: `1px solid ${borde}` }}>
+                <div key={r.id} className="rounded-xl p-4 mb-3" style={{ border: `1px solid ${editandoReservaId === r.id ? primario : borde}` }}>
                   <div className="flex justify-between items-start mb-2">
                     <div>
                       <p className="font-medium" style={{ color: texto }}>{r.customer_name}</p>
@@ -664,11 +694,13 @@ export default function Dashboard() {
                     </div>
                     <span className={`text-xs px-2 py-1 rounded-full ${r.estado === 'confirmada' ? 'bg-green-100 text-green-700' : r.estado === 'cancelada' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>{r.estado}</span>
                   </div>
-                  <p className="text-sm mb-3" style={{ color: textoSec }}>{r.fecha} · {r.hora} · {r.servicio}</p>
+                  <p className="text-sm mb-1" style={{ color: textoSec }}>{r.fecha} · {r.hora} · {r.servicio}</p>
                   {r.notas && <p className="text-xs mb-3" style={{ color: textoSec }}>{r.notas}</p>}
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 mt-3">
                     {r.estado !== 'confirmada' && <button onClick={() => cambiarEstadoReserva(r.id, 'confirmada')} className="flex-1 text-xs font-semibold rounded-lg py-2" style={{ background: boton, color: botonTexto }}>Confirmar</button>}
                     {r.estado !== 'cancelada' && <button onClick={() => cambiarEstadoReserva(r.id, 'cancelada')} className="flex-1 text-xs font-semibold rounded-lg py-2" style={{ border: `1px solid ${borde}`, color: textoSec, background: 'transparent' }}>Cancelar</button>}
+                    <button onClick={() => { setEditandoReservaId(r.id); setCreandoReserva(false); setReservaForm({ customer_name: r.customer_name || '', customer_email: r.customer_email || '', customer_phone: '', servicio: r.servicio || '', fecha: r.fecha || '', hora: r.hora || '', notas: r.notas || '' }) }} className="text-xs px-3 py-2 rounded-lg" style={{ color: primario, border: `1px solid ${primario}` }}>Editar</button>
+                    <button onClick={() => eliminarReserva(r.id)} className="text-xs px-3 py-2 rounded-lg" style={{ color: '#ef4444', border: '1px solid #fca5a5' }}>✕</button>
                   </div>
                 </div>
               ))
