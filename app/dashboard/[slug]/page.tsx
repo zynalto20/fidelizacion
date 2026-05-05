@@ -122,13 +122,17 @@ export default function Dashboard() {
   }
 
   async function crearServicio() {
-    const { data } = await supabase.from('vehicle_services').insert({
-      ...servicioForm,
+    const payload: any = {
+      tipo_servicio: servicioForm.tipo_servicio,
+      descripcion: servicioForm.descripcion || null,
+      fecha_servicio: servicioForm.fecha_servicio || null,
       km_servicio: parseInt(servicioForm.km_servicio) || null,
+      proximo_servicio_fecha: servicioForm.proximo_servicio_fecha || null,
       proximo_servicio_km: parseInt(servicioForm.proximo_servicio_km) || null,
       vehicle_id: vehiculoSeleccionado.id,
       restaurant_id: restaurante.id
-    }).select().single()
+    }
+    const { data } = await supabase.from('vehicle_services').insert(payload).select().single()
     if (data) {
       setServiciosVehiculo([data, ...serviciosVehiculo])
       setCreandoServicio(false)
