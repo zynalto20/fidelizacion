@@ -38,8 +38,9 @@ export default function Dashboard() {
   const [servicioForm, setServicioForm] = useState({ tipo_servicio: '', descripcion: '', fecha_servicio: '', km_servicio: '', proximo_servicio_fecha: '', proximo_servicio_km: '' })
   const [statsCliente, setStatsCliente] = useState<any>({})
   const [creandoReserva, setCreandoReserva] = useState(false)
-  const [reservaForm, setReservaForm] = useState({ customer_name: '', customer_email: '', servicio: '', fecha: '', hora: '', notas: '' })
+  const [reservaForm, setReservaForm] = useState({ customer_name: '', customer_email: '', customer_phone: '', servicio: '', fecha: '', hora: '', notas: '' })
   const [mesReserva, setMesReserva] = useState(new Date())
+
   useEffect(() => {
     async function cargarDatos() {
       const { data: { session } } = await supabase.auth.getSession()
@@ -176,13 +177,13 @@ export default function Dashboard() {
       servicio: reservaForm.servicio || 'General',
       fecha: reservaForm.fecha,
       hora: reservaForm.hora,
-      notas: reservaForm.notas || null,
+      notas: (reservaForm.customer_phone ? `Tel: ${reservaForm.customer_phone}${reservaForm.notas ? ' | ' + reservaForm.notas : ''}` : reservaForm.notas) || null,
       estado: 'pendiente'
     }).select().single()
     if (data) {
       setReservas([...reservas, data].sort((a, b) => a.fecha > b.fecha ? 1 : -1))
       setCreandoReserva(false)
-      setReservaForm({ customer_name: '', customer_email: '', servicio: '', fecha: '', hora: '', notas: '' })
+      setReservaForm({ customer_name: '', customer_email: '', customer_phone: '', servicio: '', fecha: '', hora: '', notas: '' })
     }
   }
 
@@ -307,15 +308,12 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold" style={{ color: texto }}>{vehiculoSeleccionado.marca} {vehiculoSeleccionado.modelo}</h1>
           <p className="text-sm mt-1" style={{ color: textoSec }}>{vehiculoSeleccionado.matricula} · {vehiculoSeleccionado.tipo} · {vehiculoSeleccionado.km_actuales?.toLocaleString()} km</p>
         </div>
-
         <div className="flex justify-between items-center mb-4">
           <p className="text-xs tracking-widest uppercase" style={{ color: textoSec }}>Historial de servicios</p>
           <button onClick={() => { setCreandoServicio(true); setEditandoServicioId(null); resetServicioForm() }} className="text-xs font-semibold px-3 py-2 rounded-lg" style={{ background: boton, color: botonTexto }}>+ Añadir</button>
         </div>
-
         {editandoServicioId && formServicio(editarServicio, () => { setEditandoServicioId(null); resetServicioForm() }, 'Editar servicio')}
         {creandoServicio && !editandoServicioId && formServicio(crearServicio, () => { setCreandoServicio(false); resetServicioForm() }, 'Nuevo servicio')}
-
         {serviciosVehiculo.length === 0 ? (
           <p className="text-sm" style={{ color: textoSec }}>Sin servicios todavía</p>
         ) : (
@@ -354,7 +352,6 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold break-all" style={{ color: texto }}>{clienteSeleccionado.customers?.nombre ? `${clienteSeleccionado.customers.nombre} ${clienteSeleccionado.customers.apellidos || ''}` : clienteSeleccionado.customers?.email || 'Sin email'}</h1>
           {clienteSeleccionado.customers?.nombre && <p className="text-sm mt-1" style={{ color: textoSec }}>{clienteSeleccionado.customers?.email}</p>}
         </div>
-
         <div className="grid grid-cols-3 gap-3 mb-4">
           {[{ label: 'Sellos', value: clienteSeleccionado.sellos_actuales }, { label: 'Canjes', value: clienteSeleccionado.total_canjes }, { label: 'Visitas', value: historial.filter(h => h.tipo === 'sello').length }].map(({ label, value }) => (
             <div key={label} className="rounded-xl p-4 text-center" style={{ border: `1px solid ${borde}` }}>
@@ -363,7 +360,6 @@ export default function Dashboard() {
             </div>
           ))}
         </div>
-
         {Object.keys(statsCliente).length > 0 && (
           <div className="rounded-xl p-4 mb-6" style={{ border: `1px solid ${borde}` }}>
             <p className="text-xs tracking-widest uppercase mb-3" style={{ color: textoSec }}>Servicios realizados</p>
@@ -375,13 +371,10 @@ export default function Dashboard() {
             ))}
           </div>
         )}
-
         <div className="rounded-xl p-5 mb-6" style={{ border: `1px solid ${borde}` }}>
           <div className="flex justify-between items-center mb-4">
             <p className="text-xs tracking-widest uppercase" style={{ color: textoSec }}>Datos personales</p>
-            <button onClick={() => setEditandoFicha(!editandoFicha)} className="text-xs font-semibold px-3 py-1 rounded-lg" style={{ background: boton, color: botonTexto }}>
-              {editandoFicha ? 'Cancelar' : 'Editar'}
-            </button>
+            <button onClick={() => setEditandoFicha(!editandoFicha)} className="text-xs font-semibold px-3 py-1 rounded-lg" style={{ background: boton, color: botonTexto }}>{editandoFicha ? 'Cancelar' : 'Editar'}</button>
           </div>
           {editandoFicha ? (
             <div>
@@ -407,9 +400,7 @@ export default function Dashboard() {
                   <input type="text" value={fichaForm[key] || ''} onChange={(e) => setFichaForm({ ...fichaForm, [key]: e.target.value })} className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
                 </div>
               ))}
-              <button onClick={guardarFicha} disabled={guardandoFicha} className="w-full font-semibold rounded-xl py-3 mt-2 disabled:opacity-30 text-sm" style={{ background: boton, color: botonTexto }}>
-                {guardandoFicha ? 'Guardando...' : 'Guardar cambios'}
-              </button>
+              <button onClick={guardarFicha} disabled={guardandoFicha} className="w-full font-semibold rounded-xl py-3 mt-2 disabled:opacity-30 text-sm" style={{ background: boton, color: botonTexto }}>{guardandoFicha ? 'Guardando...' : 'Guardar cambios'}</button>
             </div>
           ) : (
             <div>
@@ -430,7 +421,6 @@ export default function Dashboard() {
             </div>
           )}
         </div>
-
         <div className="rounded-xl p-5 mb-6" style={{ border: `1px solid ${borde}` }}>
           <div className="flex justify-between items-center mb-4">
             <p className="text-xs tracking-widest uppercase" style={{ color: textoSec }}>Vehículos</p>
@@ -476,7 +466,6 @@ export default function Dashboard() {
             ))
           )}
         </div>
-
         <div className="rounded-xl p-5" style={{ border: `1px solid ${borde}` }}>
           <p className="text-xs tracking-widest uppercase mb-4" style={{ color: textoSec }}>Historial de sellos</p>
           {historial.length === 0 ? (
@@ -505,7 +494,6 @@ export default function Dashboard() {
           <p className="text-xs tracking-widest uppercase mb-2" style={{ color: textoSec }}>Dashboard</p>
           <h1 className="text-4xl font-bold leading-tight" style={{ color: texto }}>{restaurante.nombre}</h1>
         </div>
-
         <div className="flex gap-2 mb-8 overflow-x-auto">
           {['inicio', 'clientes', 'reservas', 'ajustes'].map(v => (
             <button key={v} onClick={() => setVista(v as any)} className="flex-shrink-0 px-3 py-2 rounded-xl text-xs tracking-widest uppercase transition-colors" style={{ background: vista === v ? primario : 'transparent', color: vista === v ? botonTexto : textoSec, border: vista === v ? 'none' : `1px solid ${borde}` }}>
@@ -595,13 +583,13 @@ export default function Dashboard() {
               <p className="text-xs tracking-widest uppercase" style={{ color: textoSec }}>Todas las reservas</p>
               <button onClick={() => setCreandoReserva(true)} className="text-xs font-semibold px-3 py-2 rounded-lg" style={{ background: boton, color: botonTexto }}>+ Añadir</button>
             </div>
-
             {creandoReserva && (
               <div className="rounded-xl p-4 mb-4" style={{ border: `1px solid ${borde}` }}>
                 <p className="text-xs tracking-widest uppercase mb-3" style={{ color: textoSec }}>Nueva reserva</p>
                 {[
                   { label: 'Nombre cliente', key: 'customer_name', type: 'text' },
                   { label: 'Email cliente', key: 'customer_email', type: 'email' },
+                  { label: 'Teléfono', key: 'customer_phone', type: 'tel' },
                   { label: 'Servicio', key: 'servicio', type: 'text' },
                 ].map(({ label, key, type }) => (
                   <div key={key} className="mb-3">
@@ -612,9 +600,9 @@ export default function Dashboard() {
                 <div className="mb-3">
                   <p className="text-xs tracking-widest uppercase mb-3" style={{ color: textoSec }}>Fecha</p>
                   <div className="flex items-center justify-between mb-3">
-                    <button onClick={() => { const d = new Date(mesReserva.getFullYear(), mesReserva.getMonth()-1, 1); setMesReserva(d) }} className="text-xl px-2" style={{ color: textoSec }}>‹</button>
+                    <button onClick={() => setMesReserva(new Date(mesReserva.getFullYear(), mesReserva.getMonth()-1, 1))} className="text-xl px-2" style={{ color: textoSec }}>‹</button>
                     <p className="text-sm font-medium" style={{ color: texto }}>{['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][mesReserva.getMonth()]} {mesReserva.getFullYear()}</p>
-                    <button onClick={() => { const d = new Date(mesReserva.getFullYear(), mesReserva.getMonth()+1, 1); setMesReserva(d) }} className="text-xl px-2" style={{ color: textoSec }}>›</button>
+                    <button onClick={() => setMesReserva(new Date(mesReserva.getFullYear(), mesReserva.getMonth()+1, 1))} className="text-xl px-2" style={{ color: textoSec }}>›</button>
                   </div>
                   <div className="grid grid-cols-7 mb-1">
                     {['Lu','Ma','Mi','Ju','Vi','Sá','Do'].map(d => (
@@ -660,11 +648,10 @@ export default function Dashboard() {
                 </div>
                 <div className="flex gap-2">
                   <button onClick={crearReserva} disabled={!reservaForm.customer_name || !reservaForm.fecha || !reservaForm.hora} className="flex-1 text-xs font-semibold rounded-lg py-2 disabled:opacity-30" style={{ background: boton, color: botonTexto }}>Crear</button>
-                  <button onClick={() => { setCreandoReserva(false); setReservaForm({ customer_name: '', customer_email: '', servicio: '', fecha: '', hora: '', notas: '' }) }} className="flex-1 text-xs font-semibold rounded-lg py-2" style={{ border: `1px solid ${borde}`, color: textoSec, background: 'transparent' }}>Cancelar</button>
+                  <button onClick={() => { setCreandoReserva(false); setReservaForm({ customer_name: '', customer_email: '', customer_phone: '', servicio: '', fecha: '', hora: '', notas: '' }) }} className="flex-1 text-xs font-semibold rounded-lg py-2" style={{ border: `1px solid ${borde}`, color: textoSec, background: 'transparent' }}>Cancelar</button>
                 </div>
               </div>
             )}
-
             {reservas.length === 0 ? (
               <p className="text-sm" style={{ color: textoSec }}>No hay reservas todavía</p>
             ) : (
@@ -678,7 +665,7 @@ export default function Dashboard() {
                     <span className={`text-xs px-2 py-1 rounded-full ${r.estado === 'confirmada' ? 'bg-green-100 text-green-700' : r.estado === 'cancelada' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>{r.estado}</span>
                   </div>
                   <p className="text-sm mb-3" style={{ color: textoSec }}>{r.fecha} · {r.hora} · {r.servicio}</p>
-                  {r.notas && <p className="text-xs mb-3" style={{ color: textoSec }}>"{r.notas}"</p>}
+                  {r.notas && <p className="text-xs mb-3" style={{ color: textoSec }}>{r.notas}</p>}
                   <div className="flex gap-2">
                     {r.estado !== 'confirmada' && <button onClick={() => cambiarEstadoReserva(r.id, 'confirmada')} className="flex-1 text-xs font-semibold rounded-lg py-2" style={{ background: boton, color: botonTexto }}>Confirmar</button>}
                     {r.estado !== 'cancelada' && <button onClick={() => cambiarEstadoReserva(r.id, 'cancelada')} className="flex-1 text-xs font-semibold rounded-lg py-2" style={{ border: `1px solid ${borde}`, color: textoSec, background: 'transparent' }}>Cancelar</button>}
