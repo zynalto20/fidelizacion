@@ -34,6 +34,7 @@ export default function Dashboard() {
   const [creandoVehiculo, setCreandoVehiculo] = useState(false)
   const [vehiculoForm, setVehiculoForm] = useState({ tipo: 'Coche', marca: '', modelo: '', matricula: '', km_actuales: '' })
   const [creandoServicio, setCreandoServicio] = useState(false)
+  const [editandoServicioId, setEditandoServicioId] = useState<string | null>(null)
   const [servicioForm, setServicioForm] = useState({ tipo_servicio: '', descripcion: '', fecha_servicio: '', km_servicio: '', proximo_servicio_fecha: '', proximo_servicio_km: '' })
   const [statsCliente, setStatsCliente] = useState<any>({})
 
@@ -121,6 +122,10 @@ export default function Dashboard() {
     if (vehiculoSeleccionado?.id === id) setVehiculoSeleccionado(null)
   }
 
+  function resetServicioForm() {
+    setServicioForm({ tipo_servicio: '', descripcion: '', fecha_servicio: '', km_servicio: '', proximo_servicio_fecha: '', proximo_servicio_km: '' })
+  }
+
   async function crearServicio() {
     const payload: any = {
       tipo_servicio: servicioForm.tipo_servicio,
@@ -136,8 +141,29 @@ export default function Dashboard() {
     if (data) {
       setServiciosVehiculo([data, ...serviciosVehiculo])
       setCreandoServicio(false)
-      setServicioForm({ tipo_servicio: '', descripcion: '', fecha_servicio: '', km_servicio: '', proximo_servicio_fecha: '', proximo_servicio_km: '' })
+      resetServicioForm()
     }
+  }
+
+  async function editarServicio() {
+    const payload: any = {
+      tipo_servicio: servicioForm.tipo_servicio,
+      descripcion: servicioForm.descripcion || null,
+      fecha_servicio: servicioForm.fecha_servicio || null,
+      km_servicio: parseInt(servicioForm.km_servicio) || null,
+      proximo_servicio_fecha: servicioForm.proximo_servicio_fecha || null,
+      proximo_servicio_km: parseInt(servicioForm.proximo_servicio_km) || null,
+    }
+    await supabase.from('vehicle_services').update(payload).eq('id', editandoServicioId)
+    setServiciosVehiculo(serviciosVehiculo.map(s => s.id === editandoServicioId ? { ...s, ...payload } : s))
+    setEditandoServicioId(null)
+    resetServicioForm()
+  }
+
+  async function eliminarServicio(id: string) {
+    if (!confirm('¿Eliminar este servicio?')) return
+    await supabase.from('vehicle_services').delete().eq('id', id)
+    setServiciosVehiculo(serviciosVehiculo.filter(s => s.id !== id))
   }
 
   async function crearCliente() {
@@ -208,6 +234,50 @@ export default function Dashboard() {
   const borde = fondoClaro ? '#e2e8f0' : 'rgba(255,255,255,0.15)'
   const bordeClaro = fondoClaro ? '#f1f5f9' : 'rgba(255,255,255,0.08)'
 
+  const formServicio = (onGuardar: () => void, onCancelar: () => void, titulo: string) => (
+    <div className="rounded-xl p-4 mb-4" style={{ border: `1px solid ${editandoServicioId ? primario : borde}` }}>
+      <p className="text-xs tracking-widest uppercase mb-3" style={{ color: textoSec }}>{titulo}</p>
+      <div className="mb-3">
+        <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>Tipo de servicio</p>
+        <select value={servicioForm.tipo_servicio} onChange={(e) => setServicioForm({ ...servicioForm, tipo_servicio: e.target.value })} className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }}>
+          <option value="" style={{ background: fondoClaro ? '#fff' : '#000' }}>— Seleccionar —</option>
+          {['Cambio de aceite', 'Revisión general', 'Frenos', 'Neumáticos', 'Filtros', 'Correa de distribución', 'Batería', 'ITV', 'Otro'].map(s => (
+            <option key={s} value={s} style={{ background: fondoClaro ? '#fff' : '#000' }}>{s}</option>
+          ))}
+        </select>
+      </div>
+      <div className="mb-3">
+        <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>Descripción</p>
+        <textarea value={servicioForm.descripcion} onChange={(e) => setServicioForm({ ...servicioForm, descripcion: e.target.value })} className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm resize-none h-20" style={{ border: `1px solid ${borde}`, color: texto }} />
+      </div>
+      <div className="grid grid-cols-2 gap-3 mb-3">
+        <div>
+          <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>Fecha servicio</p>
+          <input type="date" value={servicioForm.fecha_servicio} onChange={(e) => setServicioForm({ ...servicioForm, fecha_servicio: e.target.value })} className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
+        </div>
+        <div>
+          <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>KM actuales</p>
+          <input type="number" value={servicioForm.km_servicio} onChange={(e) => setServicioForm({ ...servicioForm, km_servicio: e.target.value })} placeholder="0" className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
+        </div>
+      </div>
+      <p className="text-xs tracking-widest uppercase mb-2" style={{ color: textoSec }}>Próximo servicio</p>
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <div>
+          <p className="text-xs mb-1" style={{ color: textoSec }}>Fecha</p>
+          <input type="date" value={servicioForm.proximo_servicio_fecha} onChange={(e) => setServicioForm({ ...servicioForm, proximo_servicio_fecha: e.target.value })} className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
+        </div>
+        <div>
+          <p className="text-xs mb-1" style={{ color: textoSec }}>KM</p>
+          <input type="number" value={servicioForm.proximo_servicio_km} onChange={(e) => setServicioForm({ ...servicioForm, proximo_servicio_km: e.target.value })} placeholder="0" className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <button onClick={onGuardar} disabled={!servicioForm.tipo_servicio} className="flex-1 text-xs font-semibold rounded-lg py-2 disabled:opacity-30" style={{ background: boton, color: botonTexto }}>Guardar</button>
+        <button onClick={onCancelar} className="flex-1 text-xs font-semibold rounded-lg py-2" style={{ border: `1px solid ${borde}`, color: textoSec, background: 'transparent' }}>Cancelar</button>
+      </div>
+    </div>
+  )
+
   if (vehiculoSeleccionado) return (
     <main className="min-h-screen p-6 pb-24" style={{ background: fondo }}>
       <div className="max-w-sm mx-auto">
@@ -220,61 +290,24 @@ export default function Dashboard() {
 
         <div className="flex justify-between items-center mb-4">
           <p className="text-xs tracking-widest uppercase" style={{ color: textoSec }}>Historial de servicios</p>
-          <button onClick={() => { setCreandoServicio(true) }} className="text-xs font-semibold px-3 py-2 rounded-lg" style={{ background: boton, color: botonTexto }}>+ Añadir</button>
+          <button onClick={() => { setCreandoServicio(true); setEditandoServicioId(null); resetServicioForm() }} className="text-xs font-semibold px-3 py-2 rounded-lg" style={{ background: boton, color: botonTexto }}>+ Añadir</button>
         </div>
 
-        {creandoServicio && (
-          <div className="rounded-xl p-4 mb-4" style={{ border: `1px solid ${borde}` }}>
-            <p className="text-xs tracking-widest uppercase mb-3" style={{ color: textoSec }}>Nuevo servicio</p>
-            <div className="mb-3">
-              <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>Tipo de servicio</p>
-              <select value={servicioForm.tipo_servicio} onChange={(e) => setServicioForm({ ...servicioForm, tipo_servicio: e.target.value })} className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }}>
-                <option value="" style={{ background: fondoClaro ? '#fff' : '#000' }}>— Seleccionar —</option>
-                {['Cambio de aceite', 'Revisión general', 'Frenos', 'Neumáticos', 'Filtros', 'Correa de distribución', 'Batería', 'ITV', 'Otro'].map(s => (
-                  <option key={s} value={s} style={{ background: fondoClaro ? '#fff' : '#000' }}>{s}</option>
-                ))}
-              </select>
-            </div>
-            <div className="mb-3">
-              <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>Descripción</p>
-              <textarea value={servicioForm.descripcion} onChange={(e) => setServicioForm({ ...servicioForm, descripcion: e.target.value })} className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm resize-none h-20" style={{ border: `1px solid ${borde}`, color: texto }} />
-            </div>
-            <div className="grid grid-cols-2 gap-3 mb-3">
-              <div>
-                <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>Fecha servicio</p>
-                <input type="date" value={servicioForm.fecha_servicio} onChange={(e) => setServicioForm({ ...servicioForm, fecha_servicio: e.target.value })} className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
-              </div>
-              <div>
-                <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>KM actuales</p>
-                <input type="number" value={servicioForm.km_servicio} onChange={(e) => setServicioForm({ ...servicioForm, km_servicio: e.target.value })} placeholder="0" className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
-              </div>
-            </div>
-            <p className="text-xs tracking-widest uppercase mb-2" style={{ color: textoSec }}>Próximo servicio</p>
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <div>
-                <p className="text-xs mb-1" style={{ color: textoSec }}>Fecha</p>
-                <input type="date" value={servicioForm.proximo_servicio_fecha} onChange={(e) => setServicioForm({ ...servicioForm, proximo_servicio_fecha: e.target.value })} className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
-              </div>
-              <div>
-                <p className="text-xs mb-1" style={{ color: textoSec }}>KM</p>
-                <input type="number" value={servicioForm.proximo_servicio_km} onChange={(e) => setServicioForm({ ...servicioForm, proximo_servicio_km: e.target.value })} placeholder="0" className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={crearServicio} disabled={!servicioForm.tipo_servicio} className="flex-1 text-xs font-semibold rounded-lg py-2 disabled:opacity-30" style={{ background: boton, color: botonTexto }}>Guardar</button>
-              <button onClick={() => { setCreandoServicio(false); setServicioForm({ tipo_servicio: '', descripcion: '', fecha_servicio: '', km_servicio: '', proximo_servicio_fecha: '', proximo_servicio_km: '' }) }} className="flex-1 text-xs font-semibold rounded-lg py-2" style={{ border: `1px solid ${borde}`, color: textoSec, background: 'transparent' }}>Cancelar</button>
-            </div>
-          </div>
-        )}
+        {editandoServicioId && formServicio(editarServicio, () => { setEditandoServicioId(null); resetServicioForm() }, 'Editar servicio')}
+        {creandoServicio && !editandoServicioId && formServicio(crearServicio, () => { setCreandoServicio(false); resetServicioForm() }, 'Nuevo servicio')}
 
         {serviciosVehiculo.length === 0 ? (
           <p className="text-sm" style={{ color: textoSec }}>Sin servicios todavía</p>
         ) : (
           serviciosVehiculo.map(s => (
-            <div key={s.id} className="rounded-xl p-4 mb-3" style={{ border: `1px solid ${borde}` }}>
+            <div key={s.id} className="rounded-xl p-4 mb-3" style={{ border: `1px solid ${editandoServicioId === s.id ? primario : borde}` }}>
               <div className="flex justify-between items-start mb-2">
                 <p className="font-medium" style={{ color: texto }}>{s.tipo_servicio}</p>
-                <p className="text-xs" style={{ color: textoSec }}>{s.fecha_servicio}</p>
+                <div className="flex gap-2 items-center">
+                  <p className="text-xs" style={{ color: textoSec }}>{s.fecha_servicio}</p>
+                  <button onClick={() => { setEditandoServicioId(s.id); setCreandoServicio(false); setServicioForm({ tipo_servicio: s.tipo_servicio, descripcion: s.descripcion || '', fecha_servicio: s.fecha_servicio || '', km_servicio: s.km_servicio?.toString() || '', proximo_servicio_fecha: s.proximo_servicio_fecha || '', proximo_servicio_km: s.proximo_servicio_km?.toString() || '' }) }} className="text-xs px-2 py-1 rounded-lg" style={{ color: primario, border: `1px solid ${primario}` }}>Editar</button>
+                  <button onClick={() => eliminarServicio(s.id)} className="text-xs px-2 py-1 rounded-lg" style={{ color: '#ef4444', border: '1px solid #fca5a5' }}>✕</button>
+                </div>
               </div>
               {s.descripcion && <p className="text-sm mb-2" style={{ color: textoSec }}>{s.descripcion}</p>}
               {s.km_servicio && <p className="text-xs mb-2" style={{ color: textoSec }}>KM: {s.km_servicio?.toLocaleString()}</p>}
