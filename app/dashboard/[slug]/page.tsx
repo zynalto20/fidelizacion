@@ -39,7 +39,7 @@ export default function Dashboard() {
   const [statsCliente, setStatsCliente] = useState<any>({})
   const [creandoReserva, setCreandoReserva] = useState(false)
   const [reservaForm, setReservaForm] = useState({ customer_name: '', customer_email: '', servicio: '', fecha: '', hora: '', notas: '' })
-
+  const [mesReserva, setMesReserva] = useState(new Date())
   useEffect(() => {
     async function cargarDatos() {
       const { data: { session } } = await supabase.auth.getSession()
@@ -609,16 +609,51 @@ export default function Dashboard() {
                     <input type={type} value={reservaForm[key as keyof typeof reservaForm]} onChange={(e) => setReservaForm({ ...reservaForm, [key]: e.target.value })} className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
                   </div>
                 ))}
-                <div className="grid grid-cols-2 gap-3 mb-3">
-                  <div>
-                    <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>Fecha</p>
-                    <input type="date" value={reservaForm.fecha} onChange={(e) => setReservaForm({ ...reservaForm, fecha: e.target.value })} className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
+                <div className="mb-3">
+                  <p className="text-xs tracking-widest uppercase mb-3" style={{ color: textoSec }}>Fecha</p>
+                  <div className="flex items-center justify-between mb-3">
+                    <button onClick={() => { const d = new Date(mesReserva.getFullYear(), mesReserva.getMonth()-1, 1); setMesReserva(d) }} className="text-xl px-2" style={{ color: textoSec }}>‹</button>
+                    <p className="text-sm font-medium" style={{ color: texto }}>{['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][mesReserva.getMonth()]} {mesReserva.getFullYear()}</p>
+                    <button onClick={() => { const d = new Date(mesReserva.getFullYear(), mesReserva.getMonth()+1, 1); setMesReserva(d) }} className="text-xl px-2" style={{ color: textoSec }}>›</button>
                   </div>
-                  <div>
-                    <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>Hora</p>
-                    <input type="time" value={reservaForm.hora} onChange={(e) => setReservaForm({ ...reservaForm, hora: e.target.value })} className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
+                  <div className="grid grid-cols-7 mb-1">
+                    {['Lu','Ma','Mi','Ju','Vi','Sá','Do'].map(d => (
+                      <div key={d} className="text-center text-xs py-1" style={{ color: textoSec }}>{d}</div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-7 gap-1 mb-4">
+                    {Array.from({ length: (() => { const p = new Date(mesReserva.getFullYear(), mesReserva.getMonth(), 1).getDay(); return p === 0 ? 6 : p - 1 })() }).map((_, i) => <div key={i} />)}
+                    {Array.from({ length: new Date(mesReserva.getFullYear(), mesReserva.getMonth()+1, 0).getDate() }).map((_, i) => {
+                      const dia = i + 1
+                      const hoy = new Date(); hoy.setHours(0,0,0,0)
+                      const diaDate = new Date(mesReserva.getFullYear(), mesReserva.getMonth(), dia)
+                      const pasado = diaDate < hoy
+                      const strDia = `${mesReserva.getFullYear()}-${String(mesReserva.getMonth()+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`
+                      const seleccionado = reservaForm.fecha === strDia
+                      return (
+                        <button key={dia} onClick={() => !pasado && setReservaForm({ ...reservaForm, fecha: strDia })} disabled={pasado}
+                          className="aspect-square rounded-full flex items-center justify-center text-xs transition-colors"
+                          style={{ background: seleccionado ? primario : 'transparent', color: pasado ? `${texto}20` : seleccionado ? botonTexto : texto, cursor: pasado ? 'not-allowed' : 'pointer' }}>
+                          {dia}
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
+                {reservaForm.fecha && (
+                  <div className="mb-3">
+                    <p className="text-xs tracking-widest uppercase mb-2" style={{ color: textoSec }}>Hora</p>
+                    <div className="grid grid-cols-4 gap-2">
+                      {['09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','16:00','16:30','17:00','17:30','18:00','18:30','19:00','19:30'].map(h => (
+                        <button key={h} onClick={() => setReservaForm({ ...reservaForm, hora: h })}
+                          className="py-2 rounded-lg text-xs font-medium transition-colors"
+                          style={{ background: reservaForm.hora === h ? primario : 'transparent', color: reservaForm.hora === h ? botonTexto : texto, border: `1px solid ${reservaForm.hora === h ? primario : `${texto}20`}` }}>
+                          {h}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="mb-4">
                   <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>Notas (opcional)</p>
                   <textarea value={reservaForm.notas} onChange={(e) => setReservaForm({ ...reservaForm, notas: e.target.value })} className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm resize-none h-16" style={{ border: `1px solid ${borde}`, color: texto }} />
