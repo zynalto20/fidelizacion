@@ -37,6 +37,8 @@ export default function Dashboard() {
   const [editandoServicioId, setEditandoServicioId] = useState<string | null>(null)
   const [servicioForm, setServicioForm] = useState({ tipo_servicio: '', descripcion: '', fecha_servicio: '', km_servicio: '', proximo_servicio_fecha: '', proximo_servicio_km: '' })
   const [statsCliente, setStatsCliente] = useState<any>({})
+  const [creandoReserva, setCreandoReserva] = useState(false)
+  const [reservaForm, setReservaForm] = useState({ customer_name: '', customer_email: '', servicio: '', fecha: '', hora: '', notas: '' })
 
   useEffect(() => {
     async function cargarDatos() {
@@ -164,6 +166,24 @@ export default function Dashboard() {
     if (!confirm('¿Eliminar este servicio?')) return
     await supabase.from('vehicle_services').delete().eq('id', id)
     setServiciosVehiculo(serviciosVehiculo.filter(s => s.id !== id))
+  }
+
+  async function crearReserva() {
+    const { data } = await supabase.from('bookings').insert({
+      restaurant_id: restaurante.id,
+      customer_name: reservaForm.customer_name,
+      customer_email: reservaForm.customer_email || null,
+      servicio: reservaForm.servicio || 'General',
+      fecha: reservaForm.fecha,
+      hora: reservaForm.hora,
+      notas: reservaForm.notas || null,
+      estado: 'pendiente'
+    }).select().single()
+    if (data) {
+      setReservas([...reservas, data].sort((a, b) => a.fecha > b.fecha ? 1 : -1))
+      setCreandoReserva(false)
+      setReservaForm({ customer_name: '', customer_email: '', servicio: '', fecha: '', hora: '', notas: '' })
+    }
   }
 
   async function crearCliente() {
@@ -571,7 +591,45 @@ export default function Dashboard() {
 
         {vista === 'reservas' && (
           <div>
-            <p className="text-xs tracking-widest uppercase mb-4" style={{ color: textoSec }}>Todas las reservas</p>
+            <div className="flex justify-between items-center mb-4">
+              <p className="text-xs tracking-widest uppercase" style={{ color: textoSec }}>Todas las reservas</p>
+              <button onClick={() => setCreandoReserva(true)} className="text-xs font-semibold px-3 py-2 rounded-lg" style={{ background: boton, color: botonTexto }}>+ Añadir</button>
+            </div>
+
+            {creandoReserva && (
+              <div className="rounded-xl p-4 mb-4" style={{ border: `1px solid ${borde}` }}>
+                <p className="text-xs tracking-widest uppercase mb-3" style={{ color: textoSec }}>Nueva reserva</p>
+                {[
+                  { label: 'Nombre cliente', key: 'customer_name', type: 'text' },
+                  { label: 'Email cliente', key: 'customer_email', type: 'email' },
+                  { label: 'Servicio', key: 'servicio', type: 'text' },
+                ].map(({ label, key, type }) => (
+                  <div key={key} className="mb-3">
+                    <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>{label}</p>
+                    <input type={type} value={reservaForm[key as keyof typeof reservaForm]} onChange={(e) => setReservaForm({ ...reservaForm, [key]: e.target.value })} className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
+                  </div>
+                ))}
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <div>
+                    <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>Fecha</p>
+                    <input type="date" value={reservaForm.fecha} onChange={(e) => setReservaForm({ ...reservaForm, fecha: e.target.value })} className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
+                  </div>
+                  <div>
+                    <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>Hora</p>
+                    <input type="time" value={reservaForm.hora} onChange={(e) => setReservaForm({ ...reservaForm, hora: e.target.value })} className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
+                  </div>
+                </div>
+                <div className="mb-4">
+                  <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>Notas (opcional)</p>
+                  <textarea value={reservaForm.notas} onChange={(e) => setReservaForm({ ...reservaForm, notas: e.target.value })} className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm resize-none h-16" style={{ border: `1px solid ${borde}`, color: texto }} />
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={crearReserva} disabled={!reservaForm.customer_name || !reservaForm.fecha || !reservaForm.hora} className="flex-1 text-xs font-semibold rounded-lg py-2 disabled:opacity-30" style={{ background: boton, color: botonTexto }}>Crear</button>
+                  <button onClick={() => { setCreandoReserva(false); setReservaForm({ customer_name: '', customer_email: '', servicio: '', fecha: '', hora: '', notas: '' }) }} className="flex-1 text-xs font-semibold rounded-lg py-2" style={{ border: `1px solid ${borde}`, color: textoSec, background: 'transparent' }}>Cancelar</button>
+                </div>
+              </div>
+            )}
+
             {reservas.length === 0 ? (
               <p className="text-sm" style={{ color: textoSec }}>No hay reservas todavía</p>
             ) : (
