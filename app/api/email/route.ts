@@ -7,7 +7,7 @@ export async function POST(request: Request) {
   const { to, subject, html } = await request.json()
 
   const { data, error } = await resend.emails.send({
-    from: 'Zynalto <onboarding@resend.dev>',
+    from: 'Zynalto <noreply@zynalto.com>',
     to,
     subject,
     html
