@@ -121,8 +121,9 @@ export default function Dashboard() {
       await Promise.all(existentes.map(h => supabase.from('horarios').update({ activo: nuevoActivo }).eq('id', h.id)))
       setHorarios(horarios.map(h => h.dia_semana === diaSemana ? { ...h, activo: nuevoActivo } : h))
     } else {
-      const { data } = await supabase.from('horarios').insert({ restaurant_id: restaurante.id, dia_semana: diaSemana, hora_inicio: '09:00', hora_fin: '14:00', activo: true }).select().single()
-      if (data) setHorarios([...horarios, data])
+      const { data: f1 } = await supabase.from('horarios').insert({ restaurant_id: restaurante.id, dia_semana: diaSemana, franja: 0, hora_inicio: '09:00', hora_fin: '14:00', activo: true }).select().single()
+      const { data: f2 } = await supabase.from('horarios').insert({ restaurant_id: restaurante.id, dia_semana: diaSemana, franja: 1, hora_inicio: '16:00', hora_fin: '20:00', activo: true }).select().single()
+      if (f1 && f2) setHorarios([...horarios, f1, f2])
     }
   }
 
