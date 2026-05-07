@@ -1068,8 +1068,8 @@ export default function Dashboard() {
               {DIAS_SEMANA.map((dia, i) => {
                 const hDia = horarios.filter(h => h.dia_semana === i)
                 const abierto = hDia.some(h => h.activo)
-                const h1 = hDia[0]
-                const h2 = hDia[1]
+                const h1 = hDia.find(h => h.franja === 0)
+                const h2 = hDia.find(h => h.franja === 1)
                 return (
                   <div key={i} className="rounded-xl p-4 mb-3" style={{ border: `1px solid ${borde}`, opacity: abierto ? 1 : 0.6 }}>
                     <div className="flex items-center justify-between mb-3">
