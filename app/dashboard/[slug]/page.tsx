@@ -344,6 +344,34 @@ export default function Dashboard() {
   async function cambiarEstadoReserva(id: string, estado: string) {
     await supabase.from('bookings').update({ estado }).eq('id', id)
     setReservas(reservas.map(r => r.id === id ? { ...r, estado } : r))
+    
+    if (estado === 'confirmada') {
+      const reserva = reservas.find(r => r.id === id)
+      if (reserva?.customer_email) {
+        await fetch('/api/email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: reserva.customer_email,
+            subject: `Reserva confirmada en ${restaurante.nombre}`,
+            html: `
+              <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
+                <h2 style="color: #111;">Tu reserva está confirmada ✓</h2>
+                <p style="color: #555;">Hola ${reserva.customer_name},</p>
+                <p style="color: #555;">Tu reserva en <strong>${restaurante.nombre}</strong> ha sido confirmada.</p>
+                <div style="background: #f5f5f5; border-radius: 12px; padding: 20px; margin: 24px 0;">
+                  <p style="margin: 0 0 8px; color: #111;"><strong>Servicio:</strong> ${reserva.servicio}</p>
+                  <p style="margin: 0 0 8px; color: #111;"><strong>Fecha:</strong> ${reserva.fecha}</p>
+                  <p style="margin: 0; color: #111;"><strong>Hora:</strong> ${reserva.hora}</p>
+                </div>
+                <p style="color: #555;">¡Te esperamos!</p>
+                <p style="color: #999; font-size: 12px;">— ${restaurante.nombre}</p>
+              </div>
+            `
+          })
+        })
+      }
+    }
   }
 
   if (cargando) return (
