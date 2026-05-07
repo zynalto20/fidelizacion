@@ -87,12 +87,13 @@ export default function Dashboard() {
   }
 
   function generarHorasDisponibles(diaSemana: number) {
-    const hDia = getHorarioDia(diaSemana)
+    const hDia = horarios.filter(h => h.dia_semana === diaSemana && h.activo)
     if (hDia.length === 0) return []
     const horas: string[] = []
     hDia.forEach(franja => {
-      const [hIni, mIni] = franja.hora_inicio.split(':').map(Number)
-      const [hFin, mFin] = franja.hora_fin.split(':').map(Number)
+      if (!franja.hora_inicio || !franja.hora_fin) return
+      const [hIni, mIni] = franja.hora_inicio.slice(0,5).split(':').map(Number)
+      const [hFin, mFin] = franja.hora_fin.slice(0,5).split(':').map(Number)
       let mins = hIni * 60 + mIni
       const finMins = hFin * 60 + mFin
       while (mins < finMins) {
