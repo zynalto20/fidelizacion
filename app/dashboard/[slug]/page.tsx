@@ -573,7 +573,7 @@ export default function Dashboard() {
         ) : (
           <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${borde}` }}>
             {horas.map(h => {
-              const res = resDelDia.filter(r => r.hora === h)
+              const res = resDelDia.filter(r => r.hora?.slice(0,5) === h)
               return (
                 <div key={h} className="flex gap-3 p-3" style={{ borderBottom: `1px solid ${bordeClaro}` }}>
                   <span className="text-xs w-12 pt-0.5 flex-shrink-0" style={{ color: textoSec }}>{h}</span>
