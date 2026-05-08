@@ -581,8 +581,17 @@ export default function Dashboard() {
                     <div className="flex-1">
                       {res.map(r => (
                         <div key={r.id} className="rounded-lg px-3 py-2 mb-1" style={{ background: `${primario}20`, border: `1px solid ${primario}40` }}>
-                          <p className="text-xs font-medium" style={{ color: primario }}>{r.customer_name}</p>
-                          <p className="text-xs" style={{ color: textoSec }}>{r.servicio}</p>
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="text-xs font-medium" style={{ color: primario }}>{r.customer_name}</p>
+                              <p className="text-xs" style={{ color: textoSec }}>{r.servicio}</p>
+                            </div>
+                            <div className="flex gap-1 ml-2">
+                              <button onClick={() => { setEditandoReservaId(r.id); setCreandoReserva(false); setReservaForm({ customer_name: r.customer_name || '', customer_email: r.customer_email || '', customer_phone: '', servicio: r.servicio || '', fecha: r.fecha || '', hora: r.hora?.slice(0,5) || '', notas: r.notas || '' }) }} className="text-xs px-2 py-0.5 rounded" style={{ color: primario, border: `1px solid ${primario}` }}>Editar</button>
+                              <button onClick={() => cambiarEstadoReserva(r.id, 'confirmada')} className="text-xs px-2 py-0.5 rounded" style={{ color: '#22c55e', border: '1px solid #86efac' }}>✓</button>
+                              <button onClick={() => eliminarReserva(r.id)} className="text-xs px-2 py-0.5 rounded" style={{ color: '#ef4444', border: '1px solid #fca5a5' }}>✕</button>
+                            </div>
+                          </div>
                         </div>
                       ))}
                     </div>
