@@ -13,6 +13,8 @@ export async function POST(request: Request) {
     html
   })
 
+  console.log('Email result:', { data, error, to, subject })
+
   if (error) return NextResponse.json({ error }, { status: 400 })
   return NextResponse.json({ data })
 }
