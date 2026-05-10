@@ -47,7 +47,7 @@ export default function Dashboard() {
   const [serviciosNegocio, setServiciosNegocio] = useState<any[]>([])
   const [creandoServicioNegocio, setCreandoServicioNegocio] = useState(false)
   const [editandoServicioNegocioId, setEditandoServicioNegocioId] = useState<string | null>(null)
-  const [servicioNegocioForm, setServicioNegocioForm] = useState({ nombre: '', duracion_minutos: '' })
+  const [servicioNegocioForm, setServicioNegocioForm] = useState({ nombre: '', duracion_minutos: '', capacidad: '1' })
   const [horarios, setHorarios] = useState<any[]>([])
   const [vistaReservas, setVistaReservas] = useState<'dia' | 'semana' | 'mes' | 'año'>('semana')
   const [fechaVista, setFechaVista] = useState(new Date())
@@ -238,21 +238,22 @@ export default function Dashboard() {
       restaurant_id: restaurante.id,
       nombre: servicioNegocioForm.nombre,
       duracion_minutos: parseInt(servicioNegocioForm.duracion_minutos) || null,
+      capacidad: parseInt(servicioNegocioForm.capacidad) || 1,
       activo: true
     }).select().single()
     if (data) {
       setServiciosNegocio([...serviciosNegocio, data].sort((a, b) => a.nombre.localeCompare(b.nombre)))
       setCreandoServicioNegocio(false)
-      setServicioNegocioForm({ nombre: '', duracion_minutos: '' })
+      setServicioNegocioForm({ nombre: '', duracion_minutos: '', capacidad: '1' })
     }
   }
 
   async function editarServicioNegocio() {
-    const payload = { nombre: servicioNegocioForm.nombre, duracion_minutos: parseInt(servicioNegocioForm.duracion_minutos) || null }
+    const payload = { nombre: servicioNegocioForm.nombre, duracion_minutos: parseInt(servicioNegocioForm.duracion_minutos) || null, capacidad: parseInt(servicioNegocioForm.capacidad) || 1 }
     await supabase.from('services').update(payload).eq('id', editandoServicioNegocioId)
     setServiciosNegocio(serviciosNegocio.map(s => s.id === editandoServicioNegocioId ? { ...s, ...payload } : s))
     setEditandoServicioNegocioId(null)
-    setServicioNegocioForm({ nombre: '', duracion_minutos: '' })
+    setServicioNegocioForm({ nombre: '', duracion_minutos: '', capacidad: '1' })
   }
 
   async function eliminarServicioNegocio(id: string) {
@@ -344,7 +345,6 @@ export default function Dashboard() {
   async function cambiarEstadoReserva(id: string, estado: string) {
     await supabase.from('bookings').update({ estado }).eq('id', id)
     setReservas(reservas.map(r => r.id === id ? { ...r, estado } : r))
-    
     if (estado === 'confirmada') {
       const reserva = reservas.find(r => r.id === id)
       if (reserva?.customer_email) {
@@ -354,20 +354,7 @@ export default function Dashboard() {
           body: JSON.stringify({
             to: reserva.customer_email,
             subject: `Reserva confirmada en ${restaurante.nombre}`,
-            html: `
-              <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
-                <h2 style="color: #111;">Tu reserva está confirmada ✓</h2>
-                <p style="color: #555;">Hola ${reserva.customer_name},</p>
-                <p style="color: #555;">Tu reserva en <strong>${restaurante.nombre}</strong> ha sido confirmada.</p>
-                <div style="background: #f5f5f5; border-radius: 12px; padding: 20px; margin: 24px 0;">
-                  <p style="margin: 0 0 8px; color: #111;"><strong>Servicio:</strong> ${reserva.servicio}</p>
-                  <p style="margin: 0 0 8px; color: #111;"><strong>Fecha:</strong> ${reserva.fecha}</p>
-                  <p style="margin: 0; color: #111;"><strong>Hora:</strong> ${reserva.hora}</p>
-                </div>
-                <p style="color: #555;">¡Te esperamos!</p>
-                <p style="color: #999; font-size: 12px;">— ${restaurante.nombre}</p>
-              </div>
-            `
+            html: `<div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;"><h2 style="color: #111;">Tu reserva está confirmada ✓</h2><p style="color: #555;">Hola ${reserva.customer_name},</p><p style="color: #555;">Tu reserva en <strong>${restaurante.nombre}</strong> ha sido confirmada.</p><div style="background: #f5f5f5; border-radius: 12px; padding: 20px; margin: 24px 0;"><p style="margin: 0 0 8px; color: #111;"><strong>Servicio:</strong> ${reserva.servicio}</p><p style="margin: 0 0 8px; color: #111;"><strong>Fecha:</strong> ${reserva.fecha}</p><p style="margin: 0; color: #111;"><strong>Hora:</strong> ${reserva.hora}</p></div><p style="color: #555;">¡Te esperamos!</p><p style="color: #999; font-size: 12px;">— ${restaurante.nombre}</p></div>`
           })
         })
       }
@@ -400,7 +387,6 @@ export default function Dashboard() {
   const bordeClaro = fondoClaro ? '#f1f5f9' : 'rgba(255,255,255,0.08)'
   const fondoSidebar = fondoClaro ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.05)'
 
-  // Helpers calendario
   function strFecha(d: Date) {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
   }
@@ -526,13 +512,20 @@ export default function Dashboard() {
           <div className="mb-3">
             <p className="text-xs tracking-widest uppercase mb-2" style={{ color: textoSec }}>Hora</p>
             <div className="grid grid-cols-4 gap-2">
-              {horasDisponibles.map(h => (
-                <button key={h} onClick={() => setReservaForm({ ...reservaForm, hora: h })}
-                  className="py-2 rounded-lg text-xs font-medium transition-colors"
-                  style={{ background: reservaForm.hora === h ? primario : 'transparent', color: reservaForm.hora === h ? botonTexto : texto, border: `1px solid ${reservaForm.hora === h ? primario : `${texto}20`}` }}>
-                  {h}
-                </button>
-              ))}
+              {horasDisponibles.map(h => {
+                const servicioActual = serviciosNegocio.find(s => s.nombre === reservaForm.servicio)
+                const capacidad = servicioActual?.capacidad || 1
+                const reservasEnHora = reservas.filter(r => r.fecha === reservaForm.fecha && r.hora?.slice(0,5) === h && r.estado !== 'cancelada' && r.id !== editandoReservaId).length
+                const ocupada = reservasEnHora >= capacidad
+                const libres = capacidad - reservasEnHora
+                return (
+                  <button key={h} onClick={() => !ocupada && setReservaForm({ ...reservaForm, hora: h })} disabled={ocupada}
+                    className="py-2 rounded-lg text-xs font-medium transition-colors"
+                    style={{ background: reservaForm.hora === h ? primario : ocupada ? `${texto}10` : 'transparent', color: ocupada ? `${texto}30` : reservaForm.hora === h ? botonTexto : texto, border: `1px solid ${reservaForm.hora === h ? primario : ocupada ? `${texto}10` : `${texto}20`}`, cursor: ocupada ? 'not-allowed' : 'pointer' }}>
+                    {h}{ocupada ? ' ✗' : capacidad > 1 && libres < capacidad ? ` (${libres})` : ''}
+                  </button>
+                )
+              })}
             </div>
           </div>
         )}
@@ -551,14 +544,12 @@ export default function Dashboard() {
     )
   }
 
-  // Vistas calendario
   function VistaDia() {
     const fechaStr = strFecha(fechaVista)
     const diaSemana = fechaVista.getDay() === 0 ? 6 : fechaVista.getDay() - 1
     const horas = generarHorasDisponibles(diaSemana)
     const resDelDia = reservasDia(fechaStr)
     const cerrado = horas.length === 0
-
     return (
       <div>
         <div className="flex items-center justify-between mb-4">
@@ -612,15 +603,12 @@ export default function Dashboard() {
   function VistaSemana() {
     const lunes = getLunesSemana(fechaVista)
     const dias = Array.from({ length: 7 }).map((_, i) => {
-      const d = new Date(lunes)
-      d.setDate(lunes.getDate() + i)
-      return d
+      const d = new Date(lunes); d.setDate(lunes.getDate() + i); return d
     })
     const horasUnicas = Array.from(new Set(dias.flatMap(d => {
       const ds = d.getDay() === 0 ? 6 : d.getDay() - 1
       return generarHorasDisponibles(ds)
     }))).sort()
-
     return (
       <div>
         <div className="flex items-center justify-between mb-4">
@@ -651,13 +639,11 @@ export default function Dashboard() {
                   const ds = d.getDay() === 0 ? 6 : d.getDay() - 1
                   const horas = generarHorasDisponibles(ds)
                   const abierto = horas.includes(h)
-                  const res = reservasDia(fechaStr).filter(r => r.hora === h)
+                  const res = reservasDia(fechaStr).filter(r => r.hora?.slice(0,5) === h)
                   return (
                     <div key={i} className="p-1 min-h-10" style={{ background: abierto ? 'transparent' : `${texto}05`, borderLeft: `1px solid ${bordeClaro}` }}>
                       {res.map(r => (
-                        <div key={r.id} className="rounded px-1 py-0.5 mb-0.5 text-xs truncate" style={{ background: `${primario}20`, color: primario }}>
-                          {r.customer_name}
-                        </div>
+                        <div key={r.id} className="rounded px-1 py-0.5 mb-0.5 text-xs truncate" style={{ background: `${primario}20`, color: primario }}>{r.customer_name}</div>
                       ))}
                       {abierto && res.length === 0 && (
                         <button onClick={() => { setCreandoReserva(true); setEditandoReservaId(null); setReservaForm({ ...reservaForm, fecha: fechaStr, hora: h }) }} className="w-full h-full" />
@@ -680,7 +666,6 @@ export default function Dashboard() {
     const offset = primerDia === 0 ? 6 : primerDia - 1
     const diasEnMes = new Date(year, month + 1, 0).getDate()
     const hoy = new Date(); hoy.setHours(0,0,0,0)
-
     return (
       <div>
         <div className="flex items-center justify-between mb-4">
@@ -704,10 +689,10 @@ export default function Dashboard() {
             const esHoy = fechaStr === strFecha(hoy)
             return (
               <button key={dia} onClick={() => { setFechaVista(diaDate); setVistaReservas('dia') }}
-                className="aspect-square rounded-xl flex flex-col items-center justify-center text-xs transition-colors p-1"
+                className="aspect-square rounded-xl flex flex-col items-center justify-center text-xs p-1"
                 style={{ background: esHoy ? `${primario}20` : cerrado ? `${texto}05` : 'transparent', border: esHoy ? `1px solid ${primario}` : `1px solid ${bordeClaro}`, color: pasado ? `${texto}30` : cerrado ? `${texto}30` : texto }}>
                 <span className="font-medium">{dia}</span>
-                {numRes > 0 && <span className="mt-0.5 text-xs font-bold" style={{ color: primario }}>{numRes}</span>}
+                {numRes > 0 && <span className="font-bold" style={{ color: primario }}>{numRes}</span>}
               </button>
             )
           })}
@@ -733,14 +718,10 @@ export default function Dashboard() {
             }).length
             return (
               <button key={monthIdx} onClick={() => { setFechaVista(new Date(year, monthIdx, 1)); setVistaReservas('mes') }}
-                className="rounded-xl p-4 text-left transition-colors"
+                className="rounded-xl p-4 text-left"
                 style={{ border: `1px solid ${borde}`, background: numRes > 0 ? `${primario}10` : 'transparent' }}>
                 <p className="text-sm font-medium mb-1" style={{ color: texto }}>{MESES[monthIdx]}</p>
-                {numRes > 0 ? (
-                  <p className="text-xs font-bold" style={{ color: primario }}>{numRes} reservas</p>
-                ) : (
-                  <p className="text-xs" style={{ color: textoSec }}>Sin reservas</p>
-                )}
+                {numRes > 0 ? <p className="text-xs font-bold" style={{ color: primario }}>{numRes} reservas</p> : <p className="text-xs" style={{ color: textoSec }}>Sin reservas</p>}
               </button>
             )
           })}
@@ -1022,13 +1003,11 @@ export default function Dashboard() {
             <h2 className="text-2xl font-bold" style={{ color: texto }}>Reservas</h2>
             <button onClick={() => { setCreandoReserva(true); setEditandoReservaId(null); resetReservaForm() }} className="text-xs font-semibold px-4 py-2 rounded-xl" style={{ background: boton, color: botonTexto }}>+ Añadir</button>
           </div>
-
           {(creandoReserva || editandoReservaId) && (
             <div className="mb-6 max-w-md">
               {editandoReservaId ? formReserva(editarReserva, () => { setEditandoReservaId(null); resetReservaForm() }, 'Editar reserva') : formReserva(crearReserva, () => { setCreandoReserva(false); resetReservaForm() }, 'Nueva reserva')}
             </div>
           )}
-
           <div className="flex gap-2 mb-6">
             {(['dia','semana','mes','año'] as const).map(v => (
               <button key={v} onClick={() => setVistaReservas(v)} className="px-4 py-2 rounded-xl text-xs tracking-widest uppercase" style={{ background: vistaReservas === v ? primario : 'transparent', color: vistaReservas === v ? botonTexto : textoSec, border: vistaReservas === v ? 'none' : `1px solid ${borde}` }}>
@@ -1036,7 +1015,6 @@ export default function Dashboard() {
               </button>
             ))}
           </div>
-
           {vistaReservas === 'dia' && <VistaDia />}
           {vistaReservas === 'semana' && <VistaSemana />}
           {vistaReservas === 'mes' && <VistaMes />}
@@ -1056,11 +1034,10 @@ export default function Dashboard() {
               <p className="text-xs tracking-widest uppercase mb-3" style={{ color: textoSec }}>Premio al completar</p>
               <input type="text" value={nuevaRecompensa} onChange={(e) => setNuevaRecompensa(e.target.value)} className="w-full bg-transparent rounded-xl px-4 py-4 focus:outline-none" style={{ border: `1px solid ${borde}`, color: texto }} />
             </div>
-
             <div className="mb-8">
               <div className="flex justify-between items-center mb-4">
                 <p className="text-xs tracking-widest uppercase" style={{ color: textoSec }}>Servicios</p>
-                <button onClick={() => { setCreandoServicioNegocio(true); setEditandoServicioNegocioId(null); setServicioNegocioForm({ nombre: '', duracion_minutos: '' }) }} className="text-xs font-semibold px-3 py-2 rounded-lg" style={{ background: boton, color: botonTexto }}>+ Añadir</button>
+                <button onClick={() => { setCreandoServicioNegocio(true); setEditandoServicioNegocioId(null); setServicioNegocioForm({ nombre: '', duracion_minutos: '', capacidad: '1' }) }} className="text-xs font-semibold px-3 py-2 rounded-lg" style={{ background: boton, color: botonTexto }}>+ Añadir</button>
               </div>
               {(creandoServicioNegocio || editandoServicioNegocioId) && (
                 <div className="rounded-xl p-4 mb-4" style={{ border: `1px solid ${editandoServicioNegocioId ? primario : borde}` }}>
@@ -1069,29 +1046,33 @@ export default function Dashboard() {
                     <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>Nombre</p>
                     <input type="text" value={servicioNegocioForm.nombre} onChange={(e) => setServicioNegocioForm({ ...servicioNegocioForm, nombre: e.target.value })} placeholder="Ej: Cambio de aceite" className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
                   </div>
-                  <div className="mb-4">
+                  <div className="mb-3">
                     <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>Duración (minutos)</p>
                     <input type="number" value={servicioNegocioForm.duracion_minutos} onChange={(e) => setServicioNegocioForm({ ...servicioNegocioForm, duracion_minutos: e.target.value })} placeholder="Ej: 45" className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
                   </div>
+                  <div className="mb-4">
+                    <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>Capacidad máxima</p>
+                    <input type="number" value={servicioNegocioForm.capacidad} onChange={(e) => setServicioNegocioForm({ ...servicioNegocioForm, capacidad: e.target.value })} placeholder="Ej: 1" className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm" style={{ border: `1px solid ${borde}`, color: texto }} />
+                  </div>
                   <div className="flex gap-2">
                     <button onClick={editandoServicioNegocioId ? editarServicioNegocio : crearServicioNegocio} disabled={!servicioNegocioForm.nombre} className="flex-1 text-xs font-semibold rounded-lg py-2 disabled:opacity-30" style={{ background: boton, color: botonTexto }}>Guardar</button>
-                    <button onClick={() => { setCreandoServicioNegocio(false); setEditandoServicioNegocioId(null); setServicioNegocioForm({ nombre: '', duracion_minutos: '' }) }} className="flex-1 text-xs font-semibold rounded-lg py-2" style={{ border: `1px solid ${borde}`, color: textoSec, background: 'transparent' }}>Cancelar</button>
+                    <button onClick={() => { setCreandoServicioNegocio(false); setEditandoServicioNegocioId(null); setServicioNegocioForm({ nombre: '', duracion_minutos: '', capacidad: '1' }) }} className="flex-1 text-xs font-semibold rounded-lg py-2" style={{ border: `1px solid ${borde}`, color: textoSec, background: 'transparent' }}>Cancelar</button>
                   </div>
                 </div>
               )}
               {serviciosNegocio.length === 0 ? (
-                <p className="text-sm mb-4" style={{ color: textoSec }}>Sin servicios todavía. Añade los servicios que ofreces.</p>
+                <p className="text-sm mb-4" style={{ color: textoSec }}>Sin servicios todavía.</p>
               ) : (
                 serviciosNegocio.map(s => (
                   <div key={s.id} className="rounded-xl p-4 mb-3" style={{ border: `1px solid ${editandoServicioNegocioId === s.id ? primario : borde}`, opacity: s.activo ? 1 : 0.5 }}>
                     <div className="flex justify-between items-center">
                       <div className="flex-1">
                         <p className="font-medium text-sm" style={{ color: texto }}>{s.nombre}</p>
-                        {s.duracion_minutos && <p className="text-xs mt-0.5" style={{ color: textoSec }}>{s.duracion_minutos} min</p>}
+                        {s.duracion_minutos && <p className="text-xs mt-0.5" style={{ color: textoSec }}>{s.duracion_minutos} min · cap. {s.capacidad || 1}</p>}
                       </div>
                       <div className="flex gap-2 items-center">
                         <button onClick={() => toggleActivoServicioNegocio(s)} className="text-xs px-2 py-1 rounded-lg" style={{ color: s.activo ? primario : textoSec, border: `1px solid ${s.activo ? primario : borde}` }}>{s.activo ? 'Activo' : 'Inactivo'}</button>
-                        <button onClick={() => { setEditandoServicioNegocioId(s.id); setCreandoServicioNegocio(false); setServicioNegocioForm({ nombre: s.nombre, duracion_minutos: s.duracion_minutos?.toString() || '' }) }} className="text-xs px-2 py-1 rounded-lg" style={{ color: primario, border: `1px solid ${primario}` }}>Editar</button>
+                        <button onClick={() => { setEditandoServicioNegocioId(s.id); setCreandoServicioNegocio(false); setServicioNegocioForm({ nombre: s.nombre, duracion_minutos: s.duracion_minutos?.toString() || '', capacidad: s.capacidad?.toString() || '1' }) }} className="text-xs px-2 py-1 rounded-lg" style={{ color: primario, border: `1px solid ${primario}` }}>Editar</button>
                         <button onClick={() => eliminarServicioNegocio(s.id)} className="text-xs px-2 py-1 rounded-lg" style={{ color: '#ef4444', border: '1px solid #fca5a5' }}>✕</button>
                       </div>
                     </div>
@@ -1099,7 +1080,6 @@ export default function Dashboard() {
                 ))
               )}
             </div>
-
             <div className="mb-8">
               <p className="text-xs tracking-widest uppercase mb-4" style={{ color: textoSec }}>Horarios</p>
               {DIAS_SEMANA.map((dia, i) => {
@@ -1119,15 +1099,15 @@ export default function Dashboard() {
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">
                           <span className="text-xs w-16" style={{ color: textoSec }}>Mañana</span>
-                          <input type="time" defaultValue={h1?.hora_inicio || '09:00'} onBlur={(e) => guardarHorario(i, 0, 'hora_inicio', e.target.value)} className="bg-transparent rounded-lg px-2 py-1 text-xs focus:outline-none" style={{ border: `1px solid ${borde}`, color: texto }} />
+                          <input type="time" defaultValue={h1?.hora_inicio?.slice(0,5) || '09:00'} onBlur={(e) => guardarHorario(i, 0, 'hora_inicio', e.target.value)} className="bg-transparent rounded-lg px-2 py-1 text-xs focus:outline-none" style={{ border: `1px solid ${borde}`, color: texto }} />
                           <span className="text-xs" style={{ color: textoSec }}>–</span>
-                          <input type="time" defaultValue={h1?.hora_fin || '14:00'} onBlur={(e) => guardarHorario(i, 0, 'hora_fin', e.target.value)} className="bg-transparent rounded-lg px-2 py-1 text-xs focus:outline-none" style={{ border: `1px solid ${borde}`, color: texto }} />
+                          <input type="time" defaultValue={h1?.hora_fin?.slice(0,5) || '14:00'} onBlur={(e) => guardarHorario(i, 0, 'hora_fin', e.target.value)} className="bg-transparent rounded-lg px-2 py-1 text-xs focus:outline-none" style={{ border: `1px solid ${borde}`, color: texto }} />
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-xs w-16" style={{ color: textoSec }}>Tarde</span>
-                          <input type="time" defaultValue={h2?.hora_inicio || '16:00'} onBlur={(e) => guardarHorario(i, 1, 'hora_inicio', e.target.value)} className="bg-transparent rounded-lg px-2 py-1 text-xs focus:outline-none" style={{ border: `1px solid ${borde}`, color: texto }} />
+                          <input type="time" defaultValue={h2?.hora_inicio?.slice(0,5) || '16:00'} onBlur={(e) => guardarHorario(i, 1, 'hora_inicio', e.target.value)} className="bg-transparent rounded-lg px-2 py-1 text-xs focus:outline-none" style={{ border: `1px solid ${borde}`, color: texto }} />
                           <span className="text-xs" style={{ color: textoSec }}>–</span>
-                          <input type="time" defaultValue={h2?.hora_fin || '20:00'} onBlur={(e) => guardarHorario(i, 1, 'hora_fin', e.target.value)} className="bg-transparent rounded-lg px-2 py-1 text-xs focus:outline-none" style={{ border: `1px solid ${borde}`, color: texto }} />
+                          <input type="time" defaultValue={h2?.hora_fin?.slice(0,5) || '20:00'} onBlur={(e) => guardarHorario(i, 1, 'hora_fin', e.target.value)} className="bg-transparent rounded-lg px-2 py-1 text-xs focus:outline-none" style={{ border: `1px solid ${borde}`, color: texto }} />
                         </div>
                       </div>
                     )}
@@ -1135,7 +1115,6 @@ export default function Dashboard() {
                 )
               })}
             </div>
-
             <button onClick={guardarCambios} disabled={guardando} className="w-full font-semibold rounded-xl py-4 disabled:opacity-30 mb-4" style={{ background: boton, color: botonTexto }}>
               {guardando ? 'Guardando...' : 'Guardar cambios'}
             </button>
@@ -1151,7 +1130,6 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen flex" style={{ background: fondo }}>
-      {/* Sidebar desktop */}
       <aside className="hidden md:flex flex-col w-56 min-h-screen p-6 flex-shrink-0" style={{ background: fondoSidebar, borderRight: `1px solid ${borde}` }}>
         <div className="mb-8">
           {restaurante.logo_url && <img src={restaurante.logo_url} alt={restaurante.nombre} className="h-10 object-contain mb-4" />}
@@ -1172,11 +1150,7 @@ export default function Dashboard() {
           Cerrar sesión
         </button>
       </aside>
-
-      {/* Contenido */}
       {contenido}
-
-      {/* Tabs móvil */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 flex" style={{ background: fondo, borderTop: `1px solid ${borde}` }}>
         {tabs.map(t => (
           <button key={t.key} onClick={() => { setVista(t.key as any); setClienteSeleccionado(null); setVehiculoSeleccionado(null) }}
