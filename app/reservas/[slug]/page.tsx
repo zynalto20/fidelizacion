@@ -230,8 +230,8 @@ export default function Reservas() {
             <p className="text-xs tracking-widest uppercase mb-3" style={{ color: textoSec }}>Tus datos</p>
             {[
               { label: 'Nombre *', key: 'nombre', value: nombre, set: setNombre, type: 'text' },
-              { label: 'Email', key: 'email', value: email, set: setEmail, type: 'email' },
-              { label: 'Teléfono', key: 'telefono', value: telefono, set: setTelefono, type: 'tel' },
+          { label: 'Email *', key: 'email', value: email, set: setEmail, type: 'email' },
+          { label: 'Teléfono *', key: 'telefono', value: telefono, set: setTelefono, type: 'tel' },
             ].map(({ label, key, value, set, type }) => (
               <div key={key} className="mb-3">
                 <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>{label}</p>
@@ -247,7 +247,7 @@ export default function Reservas() {
                 style={{ border: `1px solid ${borde}`, color: texto }} />
             </div>
             {error && <p className="text-xs mb-3" style={{ color: '#ef4444' }}>{error}</p>}
-            <button onClick={confirmar} disabled={!nombre || enviando}
+            <button onClick={confirmar} disabled={!nombre || !email || !telefono || enviando}
               className="w-full font-semibold rounded-xl py-4 disabled:opacity-30"
               style={{ background: boton, color: botonTexto }}>
               {enviando ? 'Enviando...' : 'Confirmar reserva'}
