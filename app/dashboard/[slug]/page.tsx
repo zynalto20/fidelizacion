@@ -52,6 +52,7 @@ export default function Dashboard() {
   const [vistaReservas, setVistaReservas] = useState<'dia' | 'semana' | 'mes' | 'año'>('semana')
   const [fechaVista, setFechaVista] = useState(new Date())
   const [emailConfigs, setEmailConfigs] = useState<any[]>([])
+  const [editandoEmailTipo, setEditandoEmailTipo] = useState<string | null>(null)
 
   useEffect(() => {
     async function cargarDatos() {
@@ -78,6 +79,8 @@ export default function Dashboard() {
       setServiciosNegocio(svcsNegocio || [])
       const { data: horariosData } = await supabase.from('horarios').select('*').eq('restaurant_id', rest.id)
       setHorarios(horariosData || [])
+      const { data: emailConfigData } = await supabase.from('email_config').select('*').eq('restaurant_id', rest.id)
+      setEmailConfigs(emailConfigData || [])
       setCargando(false)
     }
     cargarDatos()
@@ -364,6 +367,19 @@ export default function Dashboard() {
     if (existing) {
       await supabase.from('email_config').update({ dias_inactivo: dias }).eq('id', existing.id)
       setEmailConfigs(emailConfigs.map((c: any) => c.tipo === tipo ? { ...c, dias_inactivo: dias } : c))
+    }
+  }
+  async function guardarPlantillaEmail(tipo: string, asunto: string | undefined, cuerpo: string | undefined) {
+    const existing = emailConfigs.find((c: any) => c.tipo === tipo)
+    const update: any = {}
+    if (asunto !== undefined) update.asunto = asunto
+    if (cuerpo !== undefined) update.cuerpo = cuerpo
+    if (existing) {
+      await supabase.from('email_config').update(update).eq('id', existing.id)
+      setEmailConfigs(emailConfigs.map((c: any) => c.tipo === tipo ? { ...c, ...update } : c))
+    } else {
+      const { data } = await supabase.from('email_config').insert({ restaurant_id: restaurante.id, tipo, activo: false, ...update }).select().single()
+      if (data) setEmailConfigs([...emailConfigs, data])
     }
   }
   async function cambiarEstadoReserva(id: string, estado: string) {
@@ -1060,31 +1076,57 @@ export default function Dashboard() {
             <div className="mb-8">
               <p className="text-xs tracking-widest uppercase mb-4" style={{ color: textoSec }}>Emails automáticos</p>
               {[
-                { tipo: 'recordatorio_reserva', label: 'Recordatorio 24h antes de reserva', desc: 'Se envía el día anterior a cada cita confirmada' },
-                { tipo: 'inactivos', label: 'Te echamos de menos', desc: 'Clientes que llevan tiempo sin visitarte' },
-                { tipo: 'revision_vehiculo', label: 'Recordatorio revisión vehículo', desc: 'Aviso 7 días antes de la próxima revisión' },
-              ].map(({ tipo, label, desc }) => {
+                { tipo: 'recordatorio_reserva', label: 'Recordatorio 24h antes de reserva', desc: 'Se envía el día anterior a cada cita confirmada', asuntoDefault: 'Recordatorio: tu cita es manana', cuerpoDefault: 'Hola [nombre],\n\nTe recordamos que manana tienes una cita.\n\nServicio: [servicio]\nFecha: [fecha]\nHora: [hora]\n\nTe esperamos!' },
+                { tipo: 'inactivos', label: 'Te echamos de menos', desc: 'Clientes que llevan tiempo sin visitarte', asuntoDefault: 'Te echamos de menos!', cuerpoDefault: 'Hola [nombre],\n\nLlevamos un tiempo sin verte y te echamos de menos.\n\nEsperamos verte pronto!' },
+                { tipo: 'revision_vehiculo', label: 'Recordatorio revision vehiculo', desc: 'Aviso 7 dias antes de la proxima revision', asuntoDefault: 'Recordatorio: revision de tu vehiculo', cuerpoDefault: 'Hola [nombre],\n\nEn 7 dias vence la revision de tu [marca] [modelo] ([matricula]).\n\nContacta con nosotros para reservar tu cita.' },
+              ].map(({ tipo, label, desc, asuntoDefault, cuerpoDefault }) => {
                 const config = emailConfigs.find((c: any) => c.tipo === tipo)
+                const editando = editandoEmailTipo === tipo
                 return (
-                  <div key={tipo} className="rounded-xl p-4 mb-3" style={{ border: `1px solid ${borde}` }}>
-                    <div className="flex justify-between items-start">
+                  <div key={tipo} className="rounded-xl p-4 mb-3" style={{ border: `1px solid ${editando ? primario : borde}` }}>
+                    <div className="flex justify-between items-start mb-2">
                       <div className="flex-1 mr-4">
                         <p className="font-medium text-sm" style={{ color: texto }}>{label}</p>
                         <p className="text-xs mt-0.5" style={{ color: textoSec }}>{desc}</p>
                         {tipo === 'inactivos' && config?.activo && (
                           <div className="mt-2 flex items-center gap-2">
-                            <p className="text-xs" style={{ color: textoSec }}>Días sin visitar:</p>
+                            <p className="text-xs" style={{ color: textoSec }}>Dias sin visitar:</p>
                             <input type="number" defaultValue={config?.dias_inactivo || 30} onBlur={(e) => guardarEmailConfig(tipo, true, parseInt(e.target.value))}
                               className="bg-transparent rounded-lg px-2 py-1 text-xs focus:outline-none w-16" style={{ border: `1px solid ${borde}`, color: texto }} />
                           </div>
                         )}
                       </div>
-                      <button onClick={() => toggleEmailConfig(tipo, !(config?.activo || false))}
-                        className="text-xs px-3 py-1 rounded-lg flex-shrink-0"
-                        style={{ background: config?.activo ? primario : 'transparent', color: config?.activo ? botonTexto : textoSec, border: config?.activo ? 'none' : `1px solid ${borde}` }}>
-                        {config?.activo ? 'Activo' : 'Inactivo'}
-                      </button>
+                      <div className="flex gap-2 items-center">
+                        <button onClick={() => setEditandoEmailTipo(editando ? null : tipo)}
+                          className="text-xs px-2 py-1 rounded-lg"
+                          style={{ color: primario, border: `1px solid ${primario}` }}>
+                          {editando ? 'Cerrar' : 'Editar'}
+                        </button>
+                        <button onClick={() => toggleEmailConfig(tipo, !(config?.activo || false))}
+                          className="text-xs px-3 py-1 rounded-lg flex-shrink-0"
+                          style={{ background: config?.activo ? primario : 'transparent', color: config?.activo ? botonTexto : textoSec, border: config?.activo ? 'none' : `1px solid ${borde}` }}>
+                          {config?.activo ? 'Activo' : 'Inactivo'}
+                        </button>
+                      </div>
                     </div>
+                    {editando && (
+                      <div className="mt-3">
+                        <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>Asunto</p>
+                        <input type="text" defaultValue={config?.asunto || asuntoDefault}
+                          onBlur={(e) => guardarPlantillaEmail(tipo, e.target.value, undefined)}
+                          className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm mb-3" style={{ border: `1px solid ${borde}`, color: texto }} />
+                        <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>Mensaje</p>
+                        <textarea defaultValue={config?.cuerpo || cuerpoDefault}
+                          onBlur={(e) => guardarPlantillaEmail(tipo, undefined, e.target.value)}
+                          className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm resize-none h-36" style={{ border: `1px solid ${borde}`, color: texto }} />
+                        <p className="text-xs mt-1 mb-3" style={{ color: textoSec }}>Variables: [nombre] [servicio] [fecha] [hora] [marca] [modelo] [matricula]</p>
+                        <div className="p-3 rounded-xl" style={{ background: fondoClaro ? '#f8fafc' : 'rgba(255,255,255,0.05)' }}>
+                          <p className="text-xs font-medium mb-2" style={{ color: textoSec }}>Preview</p>
+                          <p className="text-xs font-medium" style={{ color: texto }}>{config?.asunto || asuntoDefault}</p>
+                          <p className="text-xs mt-1 whitespace-pre-line" style={{ color: textoSec }}>{(config?.cuerpo || cuerpoDefault).replace('[nombre]', 'Juan').replace('[servicio]', 'Cambio de aceite').replace('[fecha]', '2026-05-20').replace('[hora]', '10:00').replace('[marca]', 'Toyota').replace('[modelo]', 'Corolla').replace('[matricula]', '1234ABC')}</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )
               })}
