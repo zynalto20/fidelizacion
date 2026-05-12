@@ -80,6 +80,12 @@ export default function Dashboard() {
       setCargando(false)
     }
     cargarDatos()
+
+    const channel = supabase.channel('bookings').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'bookings' }, (payload) => {
+      setReservas(prev => [...prev, payload.new].sort((a: any, b: any) => a.fecha > b.fecha ? 1 : -1))
+    }).subscribe()
+
+    return () => { supabase.removeChannel(channel) }
   }, [slug])
 
   function getHorarioDia(diaSemana: number) {
