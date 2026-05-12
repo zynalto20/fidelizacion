@@ -1073,64 +1073,100 @@ export default function Dashboard() {
         <>
           <h2 className="text-2xl font-bold mb-6" style={{ color: texto }}>Comunidad</h2>
           <div className="max-w-lg">
-            <div className="mb-8">
-              <p className="text-xs tracking-widest uppercase mb-4" style={{ color: textoSec }}>Emails automáticos</p>
-              {[
-                { tipo: 'recordatorio_reserva', label: 'Recordatorio 24h antes de reserva', desc: 'Se envía el día anterior a cada cita confirmada', asuntoDefault: 'Recordatorio: tu cita es manana', cuerpoDefault: 'Hola [nombre],\n\nTe recordamos que manana tienes una cita.\n\nServicio: [servicio]\nFecha: [fecha]\nHora: [hora]\n\nTe esperamos!' },
-                { tipo: 'inactivos', label: 'Te echamos de menos', desc: 'Clientes que llevan tiempo sin visitarte', asuntoDefault: 'Te echamos de menos!', cuerpoDefault: 'Hola [nombre],\n\nLlevamos un tiempo sin verte y te echamos de menos.\n\nEsperamos verte pronto!' },
-                { tipo: 'revision_vehiculo', label: 'Recordatorio revision vehiculo', desc: 'Aviso 7 dias antes de la proxima revision', asuntoDefault: 'Recordatorio: revision de tu vehiculo', cuerpoDefault: 'Hola [nombre],\n\nEn 7 dias vence la revision de tu [marca] [modelo] ([matricula]).\n\nContacta con nosotros para reservar tu cita.' },
-              ].map(({ tipo, label, desc, asuntoDefault, cuerpoDefault }) => {
-                const config = emailConfigs.find((c: any) => c.tipo === tipo)
-                const editando = editandoEmailTipo === tipo
-                return (
-                  <div key={tipo} className="rounded-xl p-4 mb-3" style={{ border: `1px solid ${editando ? primario : borde}` }}>
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex-1 mr-4">
+            <p className="text-xs tracking-widest uppercase mb-4" style={{ color: textoSec }}>Emails automáticos</p>
+            {[
+              { tipo: 'recordatorio_reserva', label: 'Recordatorio 24h antes', desc: 'Se envía el día anterior a cada cita confirmada', asuntoDefault: 'Recordatorio: tu cita es mañana', cuerpoDefault: 'Hola [nombre],\n\nTe recordamos que mañana tienes una cita.\n\nServicio: [servicio]\nFecha: [fecha]\nHora: [hora]\n\n¡Te esperamos!' },
+              { tipo: 'inactivos', label: 'Te echamos de menos', desc: 'Clientes que llevan tiempo sin visitarte', asuntoDefault: '¡Te echamos de menos!', cuerpoDefault: 'Hola [nombre],\n\nLlevamos un tiempo sin verte y te echamos de menos.\n\n¡Esperamos verte pronto!' },
+              { tipo: 'revision_vehiculo', label: 'Recordatorio revisión vehículo', desc: 'Aviso 7 días antes de la próxima revisión', asuntoDefault: 'Recordatorio: revisión de tu vehículo', cuerpoDefault: 'Hola [nombre],\n\nEn 7 días vence la revisión de tu [marca] [modelo] ([matricula]).\n\nContacta con nosotros para reservar tu cita.' },
+            ].map(({ tipo, label, desc, asuntoDefault, cuerpoDefault }) => {
+              const config = emailConfigs.find((c: any) => c.tipo === tipo)
+              const editando = editandoEmailTipo === tipo
+              const [asuntoLocal, setAsuntoLocal] = [config?.asunto || asuntoDefault, (v: string) => setEmailConfigs(emailConfigs.map((c: any) => c.tipo === tipo ? { ...c, asunto: v } : c))]
+              const [cuerpoLocal, setCuerpoLocal] = [config?.cuerpo || cuerpoDefault, (v: string) => setEmailConfigs(emailConfigs.map((c: any) => c.tipo === tipo ? { ...c, cuerpo: v } : c))]
+              return (
+                <div key={tipo} className="rounded-xl mb-4 overflow-hidden" style={{ border: `1px solid ${editando ? primario : borde}` }}>
+                  <div className="p-4">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1 mr-3">
                         <p className="font-medium text-sm" style={{ color: texto }}>{label}</p>
                         <p className="text-xs mt-0.5" style={{ color: textoSec }}>{desc}</p>
                         {tipo === 'inactivos' && config?.activo && (
                           <div className="mt-2 flex items-center gap-2">
-                            <p className="text-xs" style={{ color: textoSec }}>Dias sin visitar:</p>
+                            <p className="text-xs" style={{ color: textoSec }}>Días sin visitar:</p>
                             <input type="number" defaultValue={config?.dias_inactivo || 30} onBlur={(e) => guardarEmailConfig(tipo, true, parseInt(e.target.value))}
                               className="bg-transparent rounded-lg px-2 py-1 text-xs focus:outline-none w-16" style={{ border: `1px solid ${borde}`, color: texto }} />
                           </div>
                         )}
                       </div>
-                      <div className="flex gap-2 items-center">
+                      <div className="flex gap-2 flex-shrink-0">
                         <button onClick={() => setEditandoEmailTipo(editando ? null : tipo)}
-                          className="text-xs px-2 py-1 rounded-lg"
-                          style={{ color: primario, border: `1px solid ${primario}` }}>
+                          className="text-xs px-3 py-1.5 rounded-lg font-medium"
+                          style={{ color: editando ? botonTexto : primario, background: editando ? primario : 'transparent', border: `1px solid ${primario}` }}>
                           {editando ? 'Cerrar' : 'Editar'}
                         </button>
                         <button onClick={() => toggleEmailConfig(tipo, !(config?.activo || false))}
-                          className="text-xs px-3 py-1 rounded-lg flex-shrink-0"
-                          style={{ background: config?.activo ? primario : 'transparent', color: config?.activo ? botonTexto : textoSec, border: config?.activo ? 'none' : `1px solid ${borde}` }}>
-                          {config?.activo ? 'Activo' : 'Inactivo'}
+                          className="text-xs px-3 py-1.5 rounded-lg font-medium"
+                          style={{ background: config?.activo ? '#22c55e' : 'transparent', color: config?.activo ? '#fff' : textoSec, border: `1px solid ${config?.activo ? '#22c55e' : borde}` }}>
+                          {config?.activo ? '● Activo' : '○ Inactivo'}
                         </button>
                       </div>
                     </div>
-                    {editando && (
-                      <div className="mt-3">
-                        <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>Asunto</p>
-                        <input type="text" defaultValue={config?.asunto || asuntoDefault}
-                          onBlur={(e) => guardarPlantillaEmail(tipo, e.target.value, undefined)}
-                          className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm mb-3" style={{ border: `1px solid ${borde}`, color: texto }} />
-                        <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>Mensaje</p>
-                        <textarea defaultValue={config?.cuerpo || cuerpoDefault}
-                          onBlur={(e) => guardarPlantillaEmail(tipo, undefined, e.target.value)}
-                          className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm resize-none h-36" style={{ border: `1px solid ${borde}`, color: texto }} />
-                        <p className="text-xs mt-1 mb-3" style={{ color: textoSec }}>Variables: [nombre] [servicio] [fecha] [hora] [marca] [modelo] [matricula]</p>
-                        <div className="p-3 rounded-xl" style={{ background: fondoClaro ? '#f8fafc' : 'rgba(255,255,255,0.05)' }}>
-                          <p className="text-xs font-medium mb-2" style={{ color: textoSec }}>Preview</p>
-                          <p className="text-xs font-medium" style={{ color: texto }}>{config?.asunto || asuntoDefault}</p>
-                          <p className="text-xs mt-1 whitespace-pre-line" style={{ color: textoSec }}>{(config?.cuerpo || cuerpoDefault).replace('[nombre]', 'Juan').replace('[servicio]', 'Cambio de aceite').replace('[fecha]', '2026-05-20').replace('[hora]', '10:00').replace('[marca]', 'Toyota').replace('[modelo]', 'Corolla').replace('[matricula]', '1234ABC')}</p>
+                  </div>
+                  {editando && (
+                    <div style={{ borderTop: `1px solid ${borde}` }}>
+                      <div className="p-4">
+                        <div className="mb-4">
+                          <p className="text-xs tracking-widest uppercase mb-2" style={{ color: textoSec }}>Asunto del email</p>
+                          <input type="text"
+                            defaultValue={config?.asunto || asuntoDefault}
+                            onChange={(e) => setAsuntoLocal(e.target.value)}
+                            className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm"
+                            style={{ border: `1px solid ${borde}`, color: texto }} />
+                        </div>
+                        <div className="mb-3">
+                          <p className="text-xs tracking-widest uppercase mb-2" style={{ color: textoSec }}>Cuerpo del mensaje</p>
+                          <textarea
+                            defaultValue={config?.cuerpo || cuerpoDefault}
+                            onChange={(e) => setCuerpoLocal(e.target.value)}
+                            rows={6}
+                            className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm resize-none"
+                            style={{ border: `1px solid ${borde}`, color: texto }} />
+                          <p className="text-xs mt-1" style={{ color: textoSec }}>
+                            Variables: <span style={{ color: primario }}>[nombre]</span> <span style={{ color: primario }}>[servicio]</span> <span style={{ color: primario }}>[fecha]</span> <span style={{ color: primario }}>[hora]</span> <span style={{ color: primario }}>[marca]</span> <span style={{ color: primario }}>[modelo]</span> <span style={{ color: primario }}>[matricula]</span>
+                          </p>
+                        </div>
+                        <button onClick={() => guardarPlantillaEmail(tipo, config?.asunto || asuntoDefault, config?.cuerpo || cuerpoDefault)}
+                          className="w-full text-xs font-semibold rounded-xl py-2.5 mb-4"
+                          style={{ background: boton, color: botonTexto }}>
+                          Guardar plantilla
+                        </button>
+                        <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${borde}` }}>
+                          <div className="px-4 py-2" style={{ background: fondoClaro ? '#f1f5f9' : 'rgba(255,255,255,0.05)' }}>
+                            <p className="text-xs font-medium" style={{ color: textoSec }}>Vista previa del email</p>
+                          </div>
+                          <div className="p-4" style={{ background: fondoClaro ? '#fff' : 'rgba(255,255,255,0.02)' }}>
+                            <p className="text-xs mb-1" style={{ color: textoSec }}>Asunto:</p>
+                            <p className="text-sm font-medium mb-3" style={{ color: texto }}>{(config?.asunto || asuntoDefault).replace('[nombre]', 'Juan')}</p>
+                            <div className="rounded-lg p-3" style={{ background: fondoClaro ? '#f8fafc' : 'rgba(255,255,255,0.05)', border: `1px solid ${borde}` }}>
+                              <p className="text-xs whitespace-pre-line" style={{ color: texto }}>
+                                {(config?.cuerpo || cuerpoDefault)
+                                  .replace('[nombre]', 'Juan')
+                                  .replace('[servicio]', 'Cambio de aceite')
+                                  .replace('[fecha]', '2026-05-20')
+                                  .replace('[hora]', '10:00')
+                                  .replace('[marca]', 'Toyota')
+                                  .replace('[modelo]', 'Corolla')
+                                  .replace('[matricula]', '1234ABC')}
+                              </p>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </>
       )}
