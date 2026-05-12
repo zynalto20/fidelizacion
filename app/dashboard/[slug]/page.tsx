@@ -30,7 +30,7 @@ export default function Dashboard() {
   const [mensaje, setMensaje] = useState('')
   const [nuevoPin, setNuevoPin] = useState('')
   const [nuevaRecompensa, setNuevaRecompensa] = useState('')
-  const [vista, setVista] = useState<'inicio' | 'clientes' | 'reservas' | 'ajustes'>('inicio')
+  const [vista, setVista] = useState<'inicio' | 'clientes' | 'reservas' | 'comunidad' | 'ajustes'>('inicio')
   const [vehiculos, setVehiculos] = useState<any[]>([])
   const [vehiculoSeleccionado, setVehiculoSeleccionado] = useState<any>(null)
   const [serviciosVehiculo, setServiciosVehiculo] = useState<any[]>([])
@@ -51,6 +51,7 @@ export default function Dashboard() {
   const [horarios, setHorarios] = useState<any[]>([])
   const [vistaReservas, setVistaReservas] = useState<'dia' | 'semana' | 'mes' | 'año'>('semana')
   const [fechaVista, setFechaVista] = useState(new Date())
+  const [emailConfigs, setEmailConfigs] = useState<any[]>([])
 
   useEffect(() => {
     async function cargarDatos() {
@@ -347,7 +348,24 @@ export default function Dashboard() {
     setMensaje('✓ Cambios guardados')
     setGuardando(false)
   }
+  async function toggleEmailConfig(tipo: string, activo: boolean) {
+    const existing = emailConfigs.find((c: any) => c.tipo === tipo)
+    if (existing) {
+      await supabase.from('email_config').update({ activo }).eq('id', existing.id)
+      setEmailConfigs(emailConfigs.map((c: any) => c.tipo === tipo ? { ...c, activo } : c))
+    } else {
+      const { data } = await supabase.from('email_config').insert({ restaurant_id: restaurante.id, tipo, activo }).select().single()
+      if (data) setEmailConfigs([...emailConfigs, data])
+    }
+  }
 
+  async function guardarEmailConfig(tipo: string, activo: boolean, dias: number) {
+    const existing = emailConfigs.find((c: any) => c.tipo === tipo)
+    if (existing) {
+      await supabase.from('email_config').update({ dias_inactivo: dias }).eq('id', existing.id)
+      setEmailConfigs(emailConfigs.map((c: any) => c.tipo === tipo ? { ...c, dias_inactivo: dias } : c))
+    }
+  }
   async function cambiarEstadoReserva(id: string, estado: string) {
     await supabase.from('bookings').update({ estado }).eq('id', id)
     setReservas(reservas.map(r => r.id === id ? { ...r, estado } : r))
@@ -747,6 +765,7 @@ export default function Dashboard() {
     { key: 'inicio', label: 'Inicio', icon: '⌂' },
     { key: 'clientes', label: 'Clientes', icon: '👤' },
     { key: 'reservas', label: 'Reservas', icon: '📅' },
+    { key: 'comunidad', label: 'Comunidad', icon: '✉' },
     { key: 'ajustes', label: 'Ajustes', icon: '⚙' },
   ]
 
@@ -1034,7 +1053,45 @@ export default function Dashboard() {
           {vistaReservas === 'año' && <VistaAño />}
         </>
       )}
-
+      {vista === 'comunidad' && (
+        <>
+          <h2 className="text-2xl font-bold mb-6" style={{ color: texto }}>Comunidad</h2>
+          <div className="max-w-lg">
+            <div className="mb-8">
+              <p className="text-xs tracking-widest uppercase mb-4" style={{ color: textoSec }}>Emails automáticos</p>
+              {[
+                { tipo: 'recordatorio_reserva', label: 'Recordatorio 24h antes de reserva', desc: 'Se envía el día anterior a cada cita confirmada' },
+                { tipo: 'inactivos', label: 'Te echamos de menos', desc: 'Clientes que llevan tiempo sin visitarte' },
+                { tipo: 'revision_vehiculo', label: 'Recordatorio revisión vehículo', desc: 'Aviso 7 días antes de la próxima revisión' },
+              ].map(({ tipo, label, desc }) => {
+                const config = emailConfigs.find((c: any) => c.tipo === tipo)
+                return (
+                  <div key={tipo} className="rounded-xl p-4 mb-3" style={{ border: `1px solid ${borde}` }}>
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1 mr-4">
+                        <p className="font-medium text-sm" style={{ color: texto }}>{label}</p>
+                        <p className="text-xs mt-0.5" style={{ color: textoSec }}>{desc}</p>
+                        {tipo === 'inactivos' && config?.activo && (
+                          <div className="mt-2 flex items-center gap-2">
+                            <p className="text-xs" style={{ color: textoSec }}>Días sin visitar:</p>
+                            <input type="number" defaultValue={config?.dias_inactivo || 30} onBlur={(e) => guardarEmailConfig(tipo, true, parseInt(e.target.value))}
+                              className="bg-transparent rounded-lg px-2 py-1 text-xs focus:outline-none w-16" style={{ border: `1px solid ${borde}`, color: texto }} />
+                          </div>
+                        )}
+                      </div>
+                      <button onClick={() => toggleEmailConfig(tipo, !(config?.activo || false))}
+                        className="text-xs px-3 py-1 rounded-lg flex-shrink-0"
+                        style={{ background: config?.activo ? primario : 'transparent', color: config?.activo ? botonTexto : textoSec, border: config?.activo ? 'none' : `1px solid ${borde}` }}>
+                        {config?.activo ? 'Activo' : 'Inactivo'}
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </>
+      )}
       {vista === 'ajustes' && (
         <>
           <h2 className="text-2xl font-bold mb-6" style={{ color: texto }}>Ajustes</h2>
