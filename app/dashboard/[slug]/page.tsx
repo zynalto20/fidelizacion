@@ -649,7 +649,14 @@ export default function Dashboard() {
                   return (
                     <div key={i} className="p-1 min-h-10" style={{ background: abierto ? 'transparent' : `${texto}05`, borderLeft: `1px solid ${bordeClaro}` }}>
                       {res.map(r => (
-                        <div key={r.id} className="rounded px-1 py-0.5 mb-0.5 text-xs truncate" style={{ background: `${primario}20`, color: primario }}>{r.customer_name}</div>
+                        <div key={r.id} className="rounded px-1 py-0.5 mb-0.5 text-xs" style={{ background: `${primario}20`, color: primario }}>
+                          <p className="truncate font-medium">{r.customer_name}</p>
+                          <div className="flex gap-1 mt-0.5">
+                            <button onClick={() => { setEditandoReservaId(r.id); setCreandoReserva(false); setReservaForm({ customer_name: r.customer_name || '', customer_email: r.customer_email || '', customer_phone: '', servicio: r.servicio || '', fecha: r.fecha || '', hora: r.hora?.slice(0,5) || '', notas: r.notas || '' }) }} className="text-xs px-1 rounded" style={{ background: `${primario}30`, color: primario }}>✎</button>
+                            <button onClick={() => cambiarEstadoReserva(r.id, 'confirmada')} className="text-xs px-1 rounded" style={{ background: '#dcfce7', color: '#16a34a' }}>✓</button>
+                            <button onClick={() => eliminarReserva(r.id)} className="text-xs px-1 rounded" style={{ background: '#fee2e2', color: '#ef4444' }}>✕</button>
+                          </div>
+                        </div>
                       ))}
                       {abierto && res.length === 0 && (
                         <button onClick={() => { setCreandoReserva(true); setEditandoReservaId(null); setReservaForm({ ...reservaForm, fecha: fechaStr, hora: h }) }} className="w-full h-full" />
