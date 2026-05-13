@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import EmailConfigCard from '../../components/EmailConfigCard'
+import CampaignCard from '../../components/CampaignCard'
 
 const DIAS_SEMANA = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo']
 const DIAS_CORTO = ['Lu','Ma','Mi','Ju','Vi','Sá','Do']
@@ -54,6 +55,7 @@ export default function Dashboard() {
   const [fechaVista, setFechaVista] = useState(new Date())
   const [emailConfigs, setEmailConfigs] = useState<any[]>([])
   const [editandoEmailTipo, setEditandoEmailTipo] = useState<string | null>(null)
+  const [campaigns, setCampaigns] = useState<any[]>([])
 
   useEffect(() => {
     async function cargarDatos() {
@@ -82,6 +84,8 @@ export default function Dashboard() {
       setHorarios(horariosData || [])
       const { data: emailConfigData } = await supabase.from('email_config').select('*').eq('restaurant_id', rest.id)
       setEmailConfigs(emailConfigData || [])
+      const { data: campaignsData } = await supabase.from('campaigns').select('*').eq('restaurant_id', rest.id).order('creado_en', { ascending: false }).limit(10)
+      setCampaigns(campaignsData || [])
       setCargando(false)
     }
     cargarDatos()
@@ -370,6 +374,11 @@ export default function Dashboard() {
       setEmailConfigs(emailConfigs.map((c: any) => c.tipo === tipo ? { ...c, dias_inactivo: dias } : c))
     }
   }
+  async function recargarCampaigns() {
+    const { data } = await supabase.from('campaigns').select('*').eq('restaurant_id', restaurante.id).order('creado_en', { ascending: false }).limit(10)
+    setCampaigns(data || [])
+  }
+
   async function guardarPlantillaEmail(tipo: string, asunto: string, cuerpo: string) {
     const existing = emailConfigs.find((c: any) => c.tipo === tipo)
     if (existing) {
@@ -1071,6 +1080,41 @@ export default function Dashboard() {
         <>
           <h2 className="text-2xl font-bold mb-6" style={{ color: texto }}>Comunidad</h2>
           <div className="max-w-2xl">
+            <p className="text-xs tracking-widest uppercase mb-4" style={{ color: textoSec }}>Campañas manuales</p>
+            <CampaignCard
+              restauranteId={restaurante.id}
+              fondo={fondo}
+              texto={texto}
+              borde={borde}
+              primario={primario}
+              boton={boton}
+              botonTexto={botonTexto}
+              textoSec={textoSec}
+              fondoClaro={fondoClaro}
+              restaurante={restaurante}
+              onEnviada={recargarCampaigns}
+            />
+            {campaigns.length > 0 && (
+              <div className="mb-6">
+                <p className="text-xs tracking-widest uppercase mb-3" style={{ color: textoSec }}>Historial de campañas</p>
+                {campaigns.map((c: any) => (
+                  <div key={c.id} className="rounded-xl mb-2 p-4" style={{ border: `1px solid ${borde}` }}>
+                    <div className="flex justify-between items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate" style={{ color: texto }}>{c.asunto}</p>
+                        <p className="text-xs mt-0.5" style={{ color: textoSec }}>
+                          {c.segmento === 'todos' ? 'Todos los clientes' : c.segmento === 'inactivos' ? 'Clientes inactivos' : 'Con vehículo'}
+                          {' · '}{c.total_enviados ?? 0} enviado{c.total_enviados !== 1 ? 's' : ''}
+                        </p>
+                      </div>
+                      <p className="text-xs flex-shrink-0" style={{ color: textoSec }}>
+                        {c.creado_en ? new Date(c.creado_en).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) : ''}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
             <p className="text-xs tracking-widest uppercase mb-4" style={{ color: textoSec }}>Emails automáticos</p>
             {[
               { tipo: 'recordatorio_reserva', label: 'Recordatorio 24h antes', desc: 'Se envía el día anterior a cada cita confirmada', asuntoDefault: 'Recordatorio: tu cita es mañana', cuerpoDefault: '<p>Hola <strong>[nombre]</strong>,</p><p>Te recordamos que mañana tienes una cita.</p><ul><li><strong>Servicio:</strong> [servicio]</li><li><strong>Fecha:</strong> [fecha]</li><li><strong>Hora:</strong> [hora]</li></ul><p>¡Te esperamos!</p>' },
