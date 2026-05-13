@@ -370,16 +370,13 @@ export default function Dashboard() {
       setEmailConfigs(emailConfigs.map((c: any) => c.tipo === tipo ? { ...c, dias_inactivo: dias } : c))
     }
   }
-  async function guardarPlantillaEmail(tipo: string, asunto: string | undefined, cuerpo: string | undefined) {
+  async function guardarPlantillaEmail(tipo: string, asunto: string, cuerpo: string) {
     const existing = emailConfigs.find((c: any) => c.tipo === tipo)
-    const update: any = {}
-    if (asunto !== undefined) update.asunto = asunto
-    if (cuerpo !== undefined) update.cuerpo = cuerpo
     if (existing) {
-      await supabase.from('email_config').update(update).eq('id', existing.id)
-      setEmailConfigs(emailConfigs.map((c: any) => c.tipo === tipo ? { ...c, ...update } : c))
+      const { error } = await supabase.from('email_config').update({ asunto, cuerpo }).eq('id', existing.id)
+      if (!error) setEmailConfigs(emailConfigs.map((c: any) => c.tipo === tipo ? { ...c, asunto, cuerpo } : c))
     } else {
-      const { data } = await supabase.from('email_config').insert({ restaurant_id: restaurante.id, tipo, activo: false, ...update }).select().single()
+      const { data, error } = await supabase.from('email_config').insert({ restaurant_id: restaurante.id, tipo, activo: false, asunto, cuerpo }).select().single()
       if (data) setEmailConfigs([...emailConfigs, data])
     }
   }
