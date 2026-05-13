@@ -1097,22 +1097,55 @@ export default function Dashboard() {
             {campaigns.length > 0 && (
               <div className="mb-6">
                 <p className="text-xs tracking-widest uppercase mb-3" style={{ color: textoSec }}>Historial de campañas</p>
-                {campaigns.map((c: any) => (
-                  <div key={c.id} className="rounded-xl mb-2 p-4" style={{ border: `1px solid ${borde}` }}>
-                    <div className="flex justify-between items-start gap-3">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate" style={{ color: texto }}>{c.asunto}</p>
-                        <p className="text-xs mt-0.5" style={{ color: textoSec }}>
-                          {c.segmento === 'todos' ? 'Todos los clientes' : c.segmento === 'inactivos' ? 'Clientes inactivos' : 'Con vehículo'}
-                          {' · '}{c.total_enviados ?? 0} enviado{c.total_enviados !== 1 ? 's' : ''}
+                {campaigns.map((c: any) => {
+                  const estado = c.estado || 'enviada'
+                  const f = c.filtros
+                  let segDesc = 'Todos los clientes'
+                  if (f) {
+                    const parts: string[] = []
+                    if (f.actividad === 'activos') parts.push(`activos ${f.diasInactividad}d`)
+                    if (f.actividad === 'inactivos') parts.push(`inactivos +${f.diasInactividad}d`)
+                    if (f.sellos === 'min_sellos') parts.push(`≥${f.minSellos} sellos`)
+                    if (f.sellos === 'tarjeta_completa') parts.push('tarjeta completa')
+                    if (f.vehiculo === 'con_vehiculo') parts.push('con vehículo')
+                    if (f.vehiculo === 'sin_vehiculo') parts.push('sin vehículo')
+                    if (f.vehiculo === 'revision_proxima') parts.push(`revisión ${f.diasRevision}d`)
+                    if (f.reservas === 'ha_reservado') parts.push('con reservas')
+                    if (f.reservas === 'nunca_reservado') parts.push('sin reservas')
+                    if (f.ciudad?.trim()) parts.push(f.ciudad.trim())
+                    segDesc = parts.length > 0 ? parts.join(' · ') : 'Todos los clientes'
+                  } else if (c.segmento) {
+                    segDesc = c.segmento === 'todos' ? 'Todos los clientes' : c.segmento === 'inactivos' ? 'Clientes inactivos' : 'Con vehículo'
+                  }
+                  const estadoBadge = estado === 'programada'
+                    ? { label: 'Programada', color: '#f59e0b', bg: fondoClaro ? '#fffbeb' : 'rgba(245,158,11,0.1)' }
+                    : estado === 'error'
+                    ? { label: 'Error', color: '#ef4444', bg: fondoClaro ? '#fef2f2' : 'rgba(239,68,68,0.1)' }
+                    : { label: 'Enviada', color: '#22c55e', bg: fondoClaro ? '#f0fdf4' : 'rgba(34,197,94,0.1)' }
+                  return (
+                    <div key={c.id} className="rounded-xl mb-2 p-4" style={{ border: `1px solid ${borde}` }}>
+                      <div className="flex justify-between items-start gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <p className="text-sm font-medium truncate" style={{ color: texto }}>{c.asunto}</p>
+                            <span className="text-xs px-2 py-0.5 rounded-full flex-shrink-0 font-medium" style={{ color: estadoBadge.color, background: estadoBadge.bg }}>{estadoBadge.label}</span>
+                          </div>
+                          <p className="text-xs" style={{ color: textoSec }}>{segDesc}</p>
+                          {estado === 'programada' && c.programada_para ? (
+                            <p className="text-xs mt-0.5" style={{ color: textoSec }}>
+                              Envío: {new Date(c.programada_para).toLocaleString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          ) : (
+                            <p className="text-xs mt-0.5" style={{ color: textoSec }}>{c.total_enviados ?? 0} enviado{c.total_enviados !== 1 ? 's' : ''}</p>
+                          )}
+                        </div>
+                        <p className="text-xs flex-shrink-0" style={{ color: textoSec }}>
+                          {c.creado_en ? new Date(c.creado_en).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }) : ''}
                         </p>
                       </div>
-                      <p className="text-xs flex-shrink-0" style={{ color: textoSec }}>
-                        {c.creado_en ? new Date(c.creado_en).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) : ''}
-                      </p>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
             <p className="text-xs tracking-widest uppercase mb-4" style={{ color: textoSec }}>Emails automáticos</p>

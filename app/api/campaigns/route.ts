@@ -1,6 +1,7 @@
 import { Resend } from 'resend'
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { getDestinatarios, enviarEmails, filtrosDefault, type Filtros } from '../../lib/campaignSender'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 const supabase = createClient(
@@ -9,85 +10,44 @@ const supabase = createClient(
 )
 
 export async function POST(request: Request) {
-  const { restaurant_id, asunto, cuerpo, segmento } = await request.json()
+  const { restaurant_id, asunto, cuerpo, filtros, programada_para } = await request.json()
 
-  if (!restaurant_id || !asunto || !cuerpo || !segmento) {
+  if (!restaurant_id || !asunto || !cuerpo) {
     return NextResponse.json({ error: 'Faltan parámetros' }, { status: 400 })
   }
 
-  // Fetch customers based on segment
-  let destinatarios: { email: string; nombre: string }[] = []
+  const filtrosCompletos: Filtros = { ...filtrosDefault, ...(filtros || {}) }
 
-  if (segmento === 'todos' || segmento === 'inactivos') {
-    let query = supabase
-      .from('loyalty_cards')
-      .select('actualizado_en, customers(id, email, nombre)')
-      .eq('restaurant_id', restaurant_id)
-
-    if (segmento === 'inactivos') {
-      const cutoff = new Date()
-      cutoff.setDate(cutoff.getDate() - 30)
-      query = query.lt('actualizado_en', cutoff.toISOString())
-    }
-
-    const { data } = await query
-    destinatarios = (data || [])
-      .filter((c: any) => c.customers?.email)
-      .map((c: any) => ({ email: c.customers.email, nombre: c.customers.nombre || '' }))
-  } else if (segmento === 'con_vehiculo') {
-    const { data: cards } = await supabase
-      .from('loyalty_cards')
-      .select('customers(id, email, nombre)')
-      .eq('restaurant_id', restaurant_id)
-
-    const customerIds = (cards || []).map((c: any) => c.customers?.id).filter(Boolean)
-
-    if (customerIds.length > 0) {
-      const { data: vehicles } = await supabase
-        .from('vehicles')
-        .select('customer_id')
-        .in('customer_id', customerIds)
-
-      const idsConVehiculo = new Set(vehicles?.map((v: any) => v.customer_id) || [])
-
-      destinatarios = (cards || [])
-        .filter((c: any) => c.customers?.email && idsConVehiculo.has(c.customers.id))
-        .map((c: any) => ({ email: c.customers.email, nombre: c.customers.nombre || '' }))
-    }
+  // Campaña programada: guardar sin enviar
+  if (programada_para) {
+    const { data, error } = await supabase.from('campaigns').insert({
+      restaurant_id,
+      asunto,
+      cuerpo,
+      filtros: filtrosCompletos,
+      estado: 'programada',
+      programada_para,
+      total_enviados: 0,
+    }).select().single()
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ programada: true, campaign: data })
   }
 
-  // Deduplicate by email
-  const vistos = new Set<string>()
-  destinatarios = destinatarios.filter(d => {
-    if (vistos.has(d.email)) return false
-    vistos.add(d.email)
-    return true
-  })
+  // Envío inmediato
+  const destinatarios = await getDestinatarios(supabase, restaurant_id, filtrosCompletos)
 
   if (destinatarios.length === 0) {
-    return NextResponse.json({ error: 'No hay destinatarios para este segmento' }, { status: 400 })
+    return NextResponse.json({ error: 'No hay destinatarios con esos filtros' }, { status: 400 })
   }
 
-  // Send emails
-  const results = await Promise.allSettled(
-    destinatarios.map(d =>
-      resend.emails.send({
-        from: 'Zynalto <noreply@zynalto.com>',
-        to: d.email,
-        subject: asunto,
-        html: cuerpo.replace(/\[nombre\]/g, d.nombre || d.email.split('@')[0]),
-      })
-    )
-  )
+  const totalEnviados = await enviarEmails(resend, destinatarios, asunto, cuerpo)
 
-  const totalEnviados = results.filter(r => r.status === 'fulfilled').length
-
-  // Save campaign record
   await supabase.from('campaigns').insert({
     restaurant_id,
     asunto,
     cuerpo,
-    segmento,
+    filtros: filtrosCompletos,
+    estado: 'enviada',
     total_enviados: totalEnviados,
   })
 
