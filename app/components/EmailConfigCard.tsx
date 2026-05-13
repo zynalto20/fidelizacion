@@ -10,7 +10,7 @@ interface Props {
   cuerpoDefault: string
   config: any
   onToggle: (tipo: string, activo: boolean) => void
-  onGuardar: (tipo: string, asunto: string, cuerpo: string) => void
+  onGuardar: (tipo: string, asunto: string, cuerpo: string) => Promise<void>
   fondo: string
   texto: string
   borde: string
@@ -27,14 +27,14 @@ export default function EmailConfigCard({ tipo, label, desc, asuntoDefault, cuer
   const [asunto, setAsunto] = useState(config?.asunto || asuntoDefault)
   const [cuerpo, setCuerpo] = useState(config?.cuerpo || cuerpoDefault)
   const [guardando, setGuardando] = useState(false)
-  const [guardado, setGuardado] = useState(false)
+  const [mensajeGuardado, setMensajeGuardado] = useState('')
 
   async function guardar() {
     setGuardando(true)
     await onGuardar(tipo, asunto, cuerpo)
     setGuardando(false)
-    setGuardado(true)
-    setTimeout(() => setGuardado(false), 2000)
+    setMensajeGuardado('✓ Plantilla guardada correctamente')
+    setTimeout(() => setMensajeGuardado(''), 5000)
   }
 
   return (
@@ -68,7 +68,7 @@ export default function EmailConfigCard({ tipo, label, desc, asuntoDefault, cuer
                 className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm"
                 style={{ border: `1px solid ${borde}`, color: texto }} />
             </div>
-            <div className="mb-3">
+            <div className="mb-4">
               <p className="text-xs tracking-widest uppercase mb-2" style={{ color: textoSec }}>Cuerpo del mensaje</p>
               <EmailEditor
                 content={cuerpo}
@@ -83,10 +83,15 @@ export default function EmailConfigCard({ tipo, label, desc, asuntoDefault, cuer
               </p>
             </div>
             <button onClick={guardar} disabled={guardando}
-              className="w-full text-xs font-semibold rounded-xl py-3 mb-4 disabled:opacity-50"
+              className="w-full text-xs font-semibold rounded-xl py-3 mb-2 disabled:opacity-50"
               style={{ background: boton, color: botonTexto }}>
-              {guardando ? 'Guardando...' : guardado ? '✓ Guardado' : 'Guardar plantilla'}
+              {guardando ? 'Guardando...' : 'Guardar plantilla'}
             </button>
+            {mensajeGuardado && (
+              <p className="text-xs text-center mb-4 py-2 rounded-lg" style={{ color: '#22c55e', background: '#f0fdf4' }}>
+                {mensajeGuardado}
+              </p>
+            )}
             <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${borde}` }}>
               <div className="px-4 py-2" style={{ background: fondoClaro ? '#f1f5f9' : 'rgba(255,255,255,0.05)' }}>
                 <p className="text-xs font-medium" style={{ color: textoSec }}>Vista previa</p>
