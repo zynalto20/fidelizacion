@@ -373,10 +373,10 @@ export default function Dashboard() {
   async function guardarPlantillaEmail(tipo: string, asunto: string, cuerpo: string) {
     const existing = emailConfigs.find((c: any) => c.tipo === tipo)
     if (existing) {
-      const { error } = await supabase.from('email_config').update({ asunto, cuerpo }).eq('id', existing.id)
-      if (!error) setEmailConfigs(emailConfigs.map((c: any) => c.tipo === tipo ? { ...c, asunto, cuerpo } : c))
+      await supabase.from('email_config').update({ asunto, cuerpo }).eq('id', existing.id)
+      setEmailConfigs(emailConfigs.map((c: any) => c.tipo === tipo ? { ...c, asunto, cuerpo } : c))
     } else {
-      const { data, error } = await supabase.from('email_config').insert({ restaurant_id: restaurante.id, tipo, activo: false, asunto, cuerpo }).select().single()
+      const { data } = await supabase.from('email_config').insert({ restaurant_id: restaurante.id, tipo, activo: false, asunto, cuerpo }).select().single()
       if (data) setEmailConfigs([...emailConfigs, data])
     }
   }
