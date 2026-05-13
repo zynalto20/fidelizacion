@@ -31,7 +31,9 @@ export default function EmailConfigCard({ tipo, label, desc, asuntoDefault, cuer
 
   async function guardar() {
     setGuardando(true)
+    console.log('Guardando:', tipo, asunto, cuerpo)
     await onGuardar(tipo, asunto, cuerpo)
+    console.log('Guardado')
     setGuardando(false)
     setMensajeGuardado('✓ Plantilla guardada correctamente')
     setTimeout(() => setMensajeGuardado(''), 5000)
