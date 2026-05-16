@@ -11,6 +11,7 @@ import EstadisticasTab from '../../components/EstadisticasTab'
 import StockTab from '../../components/StockTab'
 import BuscadorGlobal from '../../components/BuscadorGlobal'
 import SoporteChat from '../../components/SoporteChat'
+import SeoTab from '../../components/SeoTab'
 
 const DIAS_SEMANA = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo']
 const DIAS_CORTO = ['Lu','Ma','Mi','Ju','Vi','Sá','Do']
@@ -60,7 +61,7 @@ export default function Dashboard() {
   const [catalogo, setCatalogo] = useState<any[]>([])
   const [catalogoForm, setCatalogoForm] = useState({ nombre: '', descripcion: '', precio: '', tipo_iva: '21', categoria: '' })
   const [creandoCatalogo, setCreandoCatalogo] = useState(false)
-  const [vista, setVista] = useState<'inicio' | 'clientes' | 'reservas' | 'marketing' | 'ordenes' | 'presupuestos' | 'estadisticas' | 'stock' | 'facturas' | 'ajustes'>('inicio')
+  const [vista, setVista] = useState<'inicio' | 'clientes' | 'reservas' | 'marketing' | 'ordenes' | 'presupuestos' | 'estadisticas' | 'stock' | 'facturas' | 'seo' | 'ajustes'>('inicio')
   const [vehiculos, setVehiculos] = useState<any[]>([])
   const [vehiculoSeleccionado, setVehiculoSeleccionado] = useState<any>(null)
   const [serviciosVehiculo, setServiciosVehiculo] = useState<any[]>([])
@@ -959,6 +960,7 @@ export default function Dashboard() {
     { key: 'estadisticas', label: 'Estadísticas', icon: '📊' },
     { key: 'stock', label: 'Stock', icon: '📦' },
     { key: 'facturas', label: 'Facturas', icon: '🧾' },
+    { key: 'seo', label: 'SEO & GEO', icon: '🔍' },
     { key: 'ajustes', label: 'Ajustes', icon: '⚙' },
   ]
 
@@ -1894,6 +1896,23 @@ export default function Dashboard() {
               fondoClaro={fondoClaro}
             />
           </div>
+        </>
+      )}
+      {vista === 'seo' && (
+        <>
+          <h2 className="text-2xl font-bold mb-1" style={{ color: texto }}>SEO & GEO</h2>
+          <p className="text-sm mb-6" style={{ color: textoSec }}>Posicionamiento en Google y en motores de inteligencia artificial</p>
+          <SeoTab
+            restaurante={restaurante}
+            fondo={fondo}
+            texto={texto}
+            borde={borde}
+            primario={primario}
+            boton={boton}
+            botonTexto={botonTexto}
+            textoSec={textoSec}
+            fondoClaro={fondoClaro}
+          />
         </>
       )}
       {vista === 'ajustes' && (
