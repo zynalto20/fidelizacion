@@ -12,6 +12,7 @@ import StockTab from '../../components/StockTab'
 import BuscadorGlobal from '../../components/BuscadorGlobal'
 import SoporteChat from '../../components/SoporteChat'
 import SeoTab from '../../components/SeoTab'
+import LandingCreator from '../../components/LandingCreator'
 
 const DIAS_SEMANA = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo']
 const DIAS_CORTO = ['Lu','Ma','Mi','Ju','Vi','Sá','Do']
@@ -92,7 +93,7 @@ export default function Dashboard() {
   const [canjesMes, setCanjesMes] = useState(0)
   const [darSelloCliente, setDarSelloCliente] = useState<string | null>(null)
   const [segmentoActivo, setSegmentoActivo] = useState<string | null>(null)
-  const [seccionMarketing, setSeccionMarketing] = useState<'fidelizacion' | 'resenas' | 'campanas' | 'seo'>('fidelizacion')
+  const [seccionMarketing, setSeccionMarketing] = useState<'fidelizacion' | 'resenas' | 'campanas' | 'seo' | 'landing'>('fidelizacion')
   const [waMensaje, setWaMensaje] = useState('Hola [nombre], te escribimos desde [NEGOCIO]. ¡Recuerda que tienes sellos pendientes en tu tarjeta de fidelización! Visítanos pronto 🚗')
   const [waFiltros, setWaFiltros] = useState<any>({ actividad: '', diasInactividad: 30, sellos: '', minSellos: 5 })
   const [enviandoWa, setEnviandoWa] = useState(false)
@@ -1451,6 +1452,7 @@ export default function Dashboard() {
                 { key: 'resenas', label: '⭐ Reseñas' },
                 { key: 'campanas', label: '📣 Campañas' },
                 { key: 'seo', label: '🔍 SEO & GEO' },
+                { key: 'landing', label: '🌐 Landing Page' },
               ].map(s => (
                 <button key={s.key} onClick={() => setSeccionMarketing(s.key as any)}
                   className="px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all flex-shrink-0"
@@ -1819,6 +1821,22 @@ export default function Dashboard() {
               <h3 className="text-lg font-bold mb-1" style={{ color: texto }}>SEO & GEO</h3>
               <p className="text-sm mb-6" style={{ color: textoSec }}>Posicionamiento en Google y en motores de inteligencia artificial</p>
               <SeoTab
+                restaurante={restaurante}
+                fondo={fondo}
+                texto={texto}
+                borde={borde}
+                primario={primario}
+                boton={boton}
+                botonTexto={botonTexto}
+                textoSec={textoSec}
+                fondoClaro={fondoClaro}
+              />
+            </div>}
+
+            {/* ══ LANDING PAGE ══ */}
+            {seccionMarketing === 'landing' && <div>
+              <h3 className="text-lg font-bold mb-1" style={{ color: texto }}>Creador de Landing Page</h3>
+              <LandingCreator
                 restaurante={restaurante}
                 fondo={fondo}
                 texto={texto}
