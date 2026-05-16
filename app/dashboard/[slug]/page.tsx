@@ -61,7 +61,7 @@ export default function Dashboard() {
   const [catalogo, setCatalogo] = useState<any[]>([])
   const [catalogoForm, setCatalogoForm] = useState({ nombre: '', descripcion: '', precio: '', tipo_iva: '21', categoria: '' })
   const [creandoCatalogo, setCreandoCatalogo] = useState(false)
-  const [vista, setVista] = useState<'inicio' | 'clientes' | 'reservas' | 'marketing' | 'ordenes' | 'presupuestos' | 'estadisticas' | 'stock' | 'facturas' | 'seo' | 'ajustes'>('inicio')
+  const [vista, setVista] = useState<'inicio' | 'clientes' | 'reservas' | 'marketing' | 'ordenes' | 'presupuestos' | 'estadisticas' | 'stock' | 'facturas' | 'ajustes'>('inicio')
   const [vehiculos, setVehiculos] = useState<any[]>([])
   const [vehiculoSeleccionado, setVehiculoSeleccionado] = useState<any>(null)
   const [serviciosVehiculo, setServiciosVehiculo] = useState<any[]>([])
@@ -92,7 +92,7 @@ export default function Dashboard() {
   const [canjesMes, setCanjesMes] = useState(0)
   const [darSelloCliente, setDarSelloCliente] = useState<string | null>(null)
   const [segmentoActivo, setSegmentoActivo] = useState<string | null>(null)
-  const [seccionMarketing, setSeccionMarketing] = useState<'fidelizacion' | 'resenas' | 'campanas'>('fidelizacion')
+  const [seccionMarketing, setSeccionMarketing] = useState<'fidelizacion' | 'resenas' | 'campanas' | 'seo'>('fidelizacion')
   const [waMensaje, setWaMensaje] = useState('Hola [nombre], te escribimos desde [NEGOCIO]. ¡Recuerda que tienes sellos pendientes en tu tarjeta de fidelización! Visítanos pronto 🚗')
   const [waFiltros, setWaFiltros] = useState<any>({ actividad: '', diasInactividad: 30, sellos: '', minSellos: 5 })
   const [enviandoWa, setEnviandoWa] = useState(false)
@@ -960,7 +960,6 @@ export default function Dashboard() {
     { key: 'estadisticas', label: 'Estadísticas', icon: '📊' },
     { key: 'stock', label: 'Stock', icon: '📦' },
     { key: 'facturas', label: 'Facturas', icon: '🧾' },
-    { key: 'seo', label: 'SEO & GEO', icon: '🔍' },
     { key: 'ajustes', label: 'Ajustes', icon: '⚙' },
   ]
 
@@ -1449,8 +1448,9 @@ export default function Dashboard() {
             <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
               {[
                 { key: 'fidelizacion', label: '⭐ Fidelización' },
-                { key: 'resenas', label: '⭐ Reseñas Google' },
+                { key: 'resenas', label: '⭐ Reseñas' },
                 { key: 'campanas', label: '📣 Campañas' },
+                { key: 'seo', label: '🔍 SEO & GEO' },
               ].map(s => (
                 <button key={s.key} onClick={() => setSeccionMarketing(s.key as any)}
                   className="px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all flex-shrink-0"
@@ -1813,6 +1813,23 @@ export default function Dashboard() {
                 />
               ))}
             </div>}
+
+            {/* ══ SEO & GEO ══ */}
+            {seccionMarketing === 'seo' && <div>
+              <h3 className="text-lg font-bold mb-1" style={{ color: texto }}>SEO & GEO</h3>
+              <p className="text-sm mb-6" style={{ color: textoSec }}>Posicionamiento en Google y en motores de inteligencia artificial</p>
+              <SeoTab
+                restaurante={restaurante}
+                fondo={fondo}
+                texto={texto}
+                borde={borde}
+                primario={primario}
+                boton={boton}
+                botonTexto={botonTexto}
+                textoSec={textoSec}
+                fondoClaro={fondoClaro}
+              />
+            </div>}
           </>
           )
         })()}
@@ -1896,23 +1913,6 @@ export default function Dashboard() {
               fondoClaro={fondoClaro}
             />
           </div>
-        </>
-      )}
-      {vista === 'seo' && (
-        <>
-          <h2 className="text-2xl font-bold mb-1" style={{ color: texto }}>SEO & GEO</h2>
-          <p className="text-sm mb-6" style={{ color: textoSec }}>Posicionamiento en Google y en motores de inteligencia artificial</p>
-          <SeoTab
-            restaurante={restaurante}
-            fondo={fondo}
-            texto={texto}
-            borde={borde}
-            primario={primario}
-            boton={boton}
-            botonTexto={botonTexto}
-            textoSec={textoSec}
-            fondoClaro={fondoClaro}
-          />
         </>
       )}
       {vista === 'ajustes' && (
