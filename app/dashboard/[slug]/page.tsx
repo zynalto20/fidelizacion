@@ -15,6 +15,7 @@ import SeoTab from '../../components/SeoTab'
 import LandingCreator from '../../components/LandingCreator'
 import SocialTab from '../../components/SocialTab'
 import CompetidoresTab from '../../components/CompetidoresTab'
+import ReferidosTab from '../../components/ReferidosTab'
 
 const DIAS_SEMANA = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo']
 const DIAS_CORTO = ['Lu','Ma','Mi','Ju','Vi','Sá','Do']
@@ -95,7 +96,7 @@ export default function Dashboard() {
   const [canjesMes, setCanjesMes] = useState(0)
   const [darSelloCliente, setDarSelloCliente] = useState<string | null>(null)
   const [segmentoActivo, setSegmentoActivo] = useState<string | null>(null)
-  const [seccionMarketing, setSeccionMarketing] = useState<'fidelizacion' | 'resenas' | 'campanas' | 'seo' | 'landing' | 'social' | 'competidores'>('fidelizacion')
+  const [seccionMarketing, setSeccionMarketing] = useState<'fidelizacion' | 'resenas' | 'campanas' | 'referidos' | 'seo' | 'landing' | 'social' | 'competidores'>('fidelizacion')
   const [waMensaje, setWaMensaje] = useState('Hola [nombre], te escribimos desde [NEGOCIO]. ¡Recuerda que tienes sellos pendientes en tu tarjeta de fidelización! Visítanos pronto 🚗')
   const [waFiltros, setWaFiltros] = useState<any>({ actividad: '', diasInactividad: 30, sellos: '', minSellos: 5 })
   const [enviandoWa, setEnviandoWa] = useState(false)
@@ -1453,6 +1454,7 @@ export default function Dashboard() {
                 { key: 'fidelizacion', label: '⭐ Fidelización' },
                 { key: 'resenas', label: '⭐ Reseñas' },
                 { key: 'campanas', label: '📣 Campañas' },
+                { key: 'referidos', label: '🤝 Referidos' },
                 { key: 'seo', label: '🔍 SEO & GEO' },
                 { key: 'landing', label: '🌐 Landing Page' },
                 { key: 'social', label: '📸 Redes Sociales' },
@@ -1818,6 +1820,23 @@ export default function Dashboard() {
                   fondoClaro={fondoClaro} restaurante={restaurante}
                 />
               ))}
+            </div>}
+
+            {/* ══ REFERIDOS ══ */}
+            {seccionMarketing === 'referidos' && <div>
+              <h3 className="text-lg font-bold mb-1" style={{ color: texto }}>Campañas de Referidos</h3>
+              <p className="text-sm mb-6" style={{ color: textoSec }}>Tus clientes traen nuevos clientes, ambos ganan.</p>
+              <ReferidosTab
+                restaurante={restaurante}
+                fondo={fondo}
+                texto={texto}
+                borde={borde}
+                primario={primario}
+                boton={boton}
+                botonTexto={botonTexto}
+                textoSec={textoSec}
+                fondoClaro={fondoClaro}
+              />
             </div>}
 
             {/* ══ SEO & GEO ══ */}

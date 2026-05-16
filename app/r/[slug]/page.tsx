@@ -1,12 +1,15 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useSearchParams } from 'next/navigation'
 import { QRCodeSVG as QRCode } from 'qrcode.react'
 import { supabase } from '../../lib/supabase'
 import Login from './login'
 
 export default function TarjetaRestaurante() {
   const { slug } = useParams()
+  const searchParams = useSearchParams()
+  const refCode = searchParams?.get('ref') || null
+
   const [restaurante, setRestaurante] = useState<any>(null)
   const [sesion, setSesion] = useState<any>(null)
   const [sellos, setSellos] = useState(0)
@@ -15,6 +18,12 @@ export default function TarjetaRestaurante() {
   const [editandoPerfil, setEditandoPerfil] = useState(false)
   const [guardandoPerfil, setGuardandoPerfil] = useState(false)
   const [form, setForm] = useState({ nombre: '', apellidos: '', telefono_nuevo: '', dni: '', direccion: '' })
+  const [referralBanner, setReferralBanner] = useState(false)
+
+  // Persist ref code in sessionStorage so it survives login redirect
+  useEffect(() => {
+    if (refCode) sessionStorage.setItem('referral_ref', refCode)
+  }, [refCode])
 
   useEffect(() => {
     async function init() {
@@ -26,11 +35,38 @@ export default function TarjetaRestaurante() {
       setCargando(false)
 
       if (session && data) {
+        // Check if this is a new loyalty card (first visit = could be a referral)
         const { data: card } = await supabase.from('loyalty_cards').select('*').eq('restaurant_id', data.id).eq('customer_id', session.user.id).single()
+        const isNewCard = !card
+        let cardId: string | null = null
+
         if (card) {
           setSellos(card.sellos_actuales)
+          cardId = card.id
         } else {
-          await supabase.from('loyalty_cards').insert({ restaurant_id: data.id, customer_id: session.user.id, sellos_actuales: 0 })
+          const { data: newCard } = await supabase.from('loyalty_cards').insert({ restaurant_id: data.id, customer_id: session.user.id, sellos_actuales: 0 }).select().single()
+          cardId = newCard?.id || null
+        }
+
+        // Register referral if new card + refCode
+        if (isNewCard && cardId) {
+          const storedRef = sessionStorage.getItem('referral_ref') || refCode
+          if (storedRef && storedRef !== cardId) {
+            const { data: existing } = await supabase.from('referrals')
+              .select('id').eq('restaurant_id', data.id).eq('referred_card_id', cardId).single()
+            if (!existing) {
+              const { data: custData } = await supabase.from('customers').select('nombre, apellidos, email').eq('id', session.user.id).single()
+              await supabase.from('referrals').insert({
+                restaurant_id: data.id,
+                referrer_card_id: storedRef,
+                referred_card_id: cardId,
+                referred_name: custData ? `${custData.nombre || ''} ${custData.apellidos || ''}`.trim() || custData.email : '',
+                estado: 'pendiente',
+              })
+              sessionStorage.removeItem('referral_ref')
+              if (data.referral_activo && data.referral_premio_referido) setReferralBanner(true)
+            }
+          }
         }
 
         const { data: customerData } = await supabase.from('customers').select('*').eq('id', session.user.id).single()
@@ -142,6 +178,16 @@ export default function TarjetaRestaurante() {
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-6" style={{ background: fondo }}>
       <div className="w-full max-w-sm">
+
+        {/* Referral welcome banner */}
+        {referralBanner && restaurante.referral_premio_referido && (
+          <div className="rounded-2xl p-4 mb-6 text-center" style={{ background: primario + '22', border: `1px solid ${primario}` }}>
+            <p className="text-lg mb-1">🎁</p>
+            <p className="font-bold text-sm mb-0.5" style={{ color: texto }}>¡Bienvenido/a! Tienes un regalo</p>
+            <p className="text-xs" style={{ color: textoSec }}>{restaurante.referral_premio_referido}</p>
+            <button onClick={() => setReferralBanner(false)} className="text-xs mt-2 underline" style={{ color: textoSec }}>Cerrar</button>
+          </div>
+        )}
 
         <div className="mb-12">
           {restaurante.logo_url && <img src={restaurante.logo_url} alt={restaurante.nombre} className="h-16 object-contain mb-6" />}
