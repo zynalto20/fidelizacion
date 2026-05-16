@@ -131,9 +131,44 @@ function CopyBtn({ text, label }: { text: string; label: string }) {
   )
 }
 
+// ── Heatmap signals ───────────────────────────────────────────────────────────
+const HEATMAP_SIGNALS = [
+  { key: 'https',              label: 'HTTPS / SSL',          cat: 'seo', seoW: 15, geoW: 0  },
+  { key: 'metaTitulo',         label: 'Meta título',          cat: 'seo', seoW: 15, geoW: 0  },
+  { key: 'metaDesc',           label: 'Meta descripción',     cat: 'seo', seoW: 15, geoW: 0  },
+  { key: 'h1',                 label: 'H1 en página',         cat: 'seo', seoW: 15, geoW: 0  },
+  { key: 'openGraph',          label: 'Open Graph tags',      cat: 'seo', seoW: 10, geoW: 0  },
+  { key: 'viewport',           label: 'Responsive (mobile)',  cat: 'seo', seoW: 10, geoW: 0  },
+  { key: 'canonical',          label: 'URL Canonical',        cat: 'seo', seoW: 5,  geoW: 0  },
+  { key: 'schemaLocalBusiness',label: 'Schema LocalBusiness', cat: 'geo', seoW: 15, geoW: 30 },
+  { key: 'schemaFAQ',          label: 'Schema FAQPage',       cat: 'geo', seoW: 0,  geoW: 25 },
+  { key: 'faqSection',         label: 'Sección FAQ visible',  cat: 'geo', seoW: 0,  geoW: 10 },
+  { key: 'phoneVisible',       label: 'Teléfono en web',      cat: 'geo', seoW: 0,  geoW: 10 },
+  { key: 'addressVisible',     label: 'Dirección en web',     cat: 'geo', seoW: 0,  geoW: 10 },
+  { key: 'googleMaps',         label: 'Embed Google Maps',    cat: 'geo', seoW: 0,  geoW: 10 },
+  { key: 'reviews',            label: 'Reseñas visibles',     cat: 'geo', seoW: 0,  geoW: 5  },
+]
+
+const ACCIONES_PLANTILLA: Record<string, { title: string; desc: string; effort: string; impact: string }> = {
+  https:               { title: 'Instala certificado SSL (HTTPS)',      impact: 'Crítico',   effort: '1h',  desc: 'Google penaliza las webs sin HTTPS. Actívalo en tu hosting (Let\'s Encrypt es gratuito). Ningún competidor con HTTPS podrá superarte en este punto.' },
+  metaTitulo:          { title: 'Añade un meta título optimizado',       impact: 'Alto',      effort: '30m', desc: 'Entre 50-60 caracteres: "[Servicio] en [Ciudad] · [Nombre taller]". Es el texto azul que aparece en Google. Sin él, Google improvisa y pierde clics.' },
+  metaDesc:            { title: 'Escribe una meta descripción de 155 ch',impact: 'Alto',      effort: '30m', desc: 'Incluye tu servicio principal, ciudad y una llamada a la acción ("Llama ahora", "Pide cita"). Aumenta el CTR hasta un 35% según estudios de Moz.' },
+  h1:                  { title: 'Añade un H1 claro en tu página',        impact: 'Alto',      effort: '15m', desc: 'Un solo H1 por página con tu keyword principal: "Taller mecánico en [Ciudad]". Es la señal de relevancia más directa para Google.' },
+  schemaLocalBusiness: { title: 'Implementa Schema AutoRepair JSON-LD',  impact: 'Crítico',   effort: '2h',  desc: 'Vale +15 SEO y +30 GEO. Cópialo desde la pestaña "Ficha Google" y pégalo en el <head> de tu web. Dice a Google y a la IA qué eres, dónde estás y cómo contactarte.' },
+  schemaFAQ:           { title: 'Añade FAQPage Schema en tu web',        impact: 'Alto',      effort: '1h',  desc: 'Vale +25 GEO. Genera tus FAQs en la pestaña "Palabras clave" y añádelas con Schema FAQPage. Te posiciona en ChatGPT, Perplexity y los rich results de Google.' },
+  openGraph:           { title: 'Configura las Open Graph tags',         impact: 'Medio',     effort: '30m', desc: 'Añade og:title, og:description, og:image. Controla cómo se ve tu web cuando alguien la comparte en WhatsApp, Facebook o LinkedIn. Mejoran el CTR social.' },
+  viewport:            { title: 'Haz tu web responsive (mobile-first)',  impact: 'Crítico',   effort: '4h',  desc: 'Google indexa principalmente la versión móvil. Una web no responsive puede perder hasta el 60% de su visibilidad en buscadores.' },
+  canonical:           { title: 'Añade la etiqueta canonical',           impact: 'Bajo',      effort: '15m', desc: '<link rel="canonical" href="URL-principal"> en el head. Evita que Google penalice contenido duplicado si tienes múltiples versiones de tu URL (www, http, etc.).' },
+  faqSection:          { title: 'Añade una sección FAQ visible',         impact: 'Alto',      effort: '1h',  desc: 'Una sección "Preguntas frecuentes" con 5-8 preguntas locales mejora el GEO +10 puntos y es el tipo de contenido que los LLMs citan directamente.' },
+  phoneVisible:        { title: 'Muestra el teléfono en formato texto',  impact: 'Medio',     effort: '15m', desc: 'El teléfono debe aparecer en texto plano (no solo como imagen) para que Google y la IA puedan leerlo y mostrarlo en resultados locales.' },
+  addressVisible:      { title: 'Muestra la dirección completa en texto',impact: 'Medio',     effort: '15m', desc: 'Calle, número, ciudad y CP en texto plano. Google cruza esta información con tu Ficha de Empresa para verificar la consistencia NAP.' },
+  googleMaps:          { title: 'Incrusta Google Maps en tu web',        impact: 'Medio',     effort: '15m', desc: 'Un embed del mapa refuerza la señal de geolocalización. Ve a Google Maps, busca tu taller, comparte → Insertar mapa y pega el iframe.' },
+  reviews:             { title: 'Muestra reseñas reales en tu web',      impact: 'Medio',     effort: '2h',  desc: 'Incrusta tus reseñas de Google o añade testimonios con Schema Review. La prueba social reduce el porcentaje de rebote y mejora la confianza ante la IA.' },
+}
+
 // ── Main export ───────────────────────────────────────────────────────────────
 export default function SeoTab({ restaurante, fondo, texto, borde, primario, boton, botonTexto, textoSec, fondoClaro }: Props) {
-  const [seccion, setSeccion] = useState<'articulos' | 'ficha' | 'palabras'>('articulos')
+  const [seccion, setSeccion] = useState<'posicion' | 'articulos' | 'ficha' | 'palabras'>('posicion')
 
   // Articles state
   const [articles, setArticles] = useState<Article[]>([])
@@ -154,6 +189,18 @@ export default function SeoTab({ restaurante, fondo, texto, borde, primario, bot
   // Keywords state
   const [ciudad, setCiudad] = useState(restaurante?.ciudad_fiscal || restaurante?.provincia || '')
   const [faqs, setFaqs] = useState<{ q: string; a: string }[]>([])
+
+  // Posicionamiento state
+  const [miUrl, setMiUrl] = useState(restaurante?.web || '')
+  const [posCompetidores, setPosCompetidores] = useState<{ nombre: string; url: string }[]>([
+    { nombre: 'Competidor 1', url: '' },
+    { nombre: 'Competidor 2', url: '' },
+    { nombre: 'Competidor 3', url: '' },
+  ])
+  const [posResultados, setPosResultados] = useState<any[]>([])
+  const [posAnalizando, setPosAnalizando] = useState(false)
+  const [posProgreso, setPosProgreso] = useState(0)
+  const [posTotal, setPosTotal] = useState(0)
 
   const bg = fondoClaro ? '#ffffff' : 'rgba(255,255,255,0.04)'
   const bgSec = fondoClaro ? '#f8fafc' : 'rgba(255,255,255,0.02)'
@@ -308,6 +355,7 @@ export default function SeoTab({ restaurante, fondo, texto, borde, primario, bot
       {/* Sub-nav */}
       <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
         {([
+          { key: 'posicion', label: '🗺️ Posicionamiento', desc: 'Mapa vs competidores' },
           { key: 'articulos', label: '✍️ Artículos', desc: 'IA semanal' },
           { key: 'ficha', label: '📍 Ficha Google', desc: 'Checklist GBP' },
           { key: 'palabras', label: '🔍 Palabras clave', desc: 'SEO + GEO' },
@@ -324,6 +372,373 @@ export default function SeoTab({ restaurante, fondo, texto, borde, primario, bot
           </button>
         ))}
       </div>
+
+      {/* ══ POSICIONAMIENTO ═══════════════════════════════════════════════════ */}
+      {seccion === 'posicion' && (() => {
+        // ── helpers ──
+        async function analizarTodo() {
+          const urls = [
+            { nombre: 'Tu taller', url: miUrl, esPropio: true },
+            ...posCompetidores.filter(c => c.url.trim()),
+          ]
+          if (!urls[0].url.trim()) return
+          setPosAnalizando(true)
+          setPosResultados([])
+          setPosProgreso(0)
+          setPosTotal(urls.length)
+          const resultados: any[] = []
+          for (let i = 0; i < urls.length; i++) {
+            const item = urls[i]
+            try {
+              const r = await fetch('/api/analisis/competidor', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: item.url.trim() }),
+              })
+              const data = await r.json()
+              resultados.push({ ...item, ...data, error: data.error || null })
+            } catch {
+              resultados.push({ ...item, seoScore: 0, geoScore: 0, error: 'Error de red' })
+            }
+            setPosProgreso(i + 1)
+          }
+          // Sort by overall score desc
+          resultados.sort((a, b) => ((b.seoScore + b.geoScore) / 2) - ((a.seoScore + a.geoScore) / 2))
+          setPosResultados(resultados)
+          setPosAnalizando(false)
+        }
+
+        const yo = posResultados.find(r => r.esPropio)
+        const ranked = [...posResultados].sort((a, b) => ((b.seoScore + b.geoScore) / 2) - ((a.seoScore + a.geoScore) / 2))
+        const miRank = ranked.findIndex(r => r.esPropio) + 1
+        const lider = ranked[0]
+
+        // generate action plan
+        const acciones: { key: string; pts: number; title: string; desc: string; effort: string; impact: string }[] = []
+        if (yo) {
+          for (const sig of HEATMAP_SIGNALS) {
+            if (!yo[sig.key]) {
+              const plantilla = ACCIONES_PLANTILLA[sig.key]
+              if (plantilla) {
+                acciones.push({ key: sig.key, pts: sig.seoW + sig.geoW, ...plantilla })
+              }
+            }
+          }
+          acciones.sort((a, b) => b.pts - a.pts)
+        }
+
+        // cell color for heatmap
+        function cellBg(val: boolean, esPropio: boolean): string {
+          if (val) return esPropio ? '#16a34a' : '#4ade80'
+          return esPropio ? '#dc2626' : '#fca5a5'
+        }
+        function cellColor(val: boolean): string { return val ? '#fff' : '#fff' }
+
+        const impactColor: Record<string, string> = { Crítico: '#ef4444', Alto: '#f59e0b', Medio: '#3b82f6', Bajo: '#64748b' }
+        const impactBg: Record<string, string> = { Crítico: fondoClaro ? '#fef2f2' : 'rgba(239,68,68,0.12)', Alto: fondoClaro ? '#fffbeb' : 'rgba(245,158,11,0.12)', Medio: fondoClaro ? '#eff6ff' : 'rgba(59,130,246,0.12)', Bajo: fondoClaro ? '#f8fafc' : 'rgba(148,163,184,0.1)' }
+
+        const hasResults = posResultados.length > 0
+
+        return (
+          <div>
+            {/* ── Config ── */}
+            {!hasResults && (
+              <div>
+                <p className="text-sm mb-5" style={{ color: textoSec }}>
+                  Introduce tu URL y las de tus competidores directos. Analizaremos todas las señales SEO y GEO para mostrarte un mapa de calor, tu posición real y el plan de acción exacto para llegar al #1.
+                </p>
+
+                {/* Mi URL */}
+                <div className="rounded-xl p-4 mb-3" style={{ border: `2px solid ${primario}`, background: bg }}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0" style={{ background: primario, color: botonTexto }}>Tú</span>
+                    <p className="text-sm font-semibold" style={{ color: texto }}>Tu taller</p>
+                  </div>
+                  <input value={miUrl} onChange={e => setMiUrl(e.target.value)}
+                    placeholder="https://tu-taller.es"
+                    className="w-full text-sm rounded-lg px-3 py-2 focus:outline-none"
+                    style={{ border: `1px solid ${borde}`, background: 'transparent', color: texto }} />
+                </div>
+
+                {/* Competidores */}
+                {posCompetidores.map((c, i) => (
+                  <div key={i} className="rounded-xl p-4 mb-3" style={{ border: `1px solid ${borde}`, background: bg }}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0 text-white"
+                        style={{ background: ['#6366f1','#f59e0b','#10b981','#ec4899','#06b6d4'][i] || '#64748b' }}>{i + 1}</span>
+                      <input value={c.nombre} onChange={e => { const n = [...posCompetidores]; n[i] = { ...n[i], nombre: e.target.value }; setPosCompetidores(n) }}
+                        className="text-sm font-semibold bg-transparent focus:outline-none flex-1"
+                        style={{ color: texto }} placeholder={`Competidor ${i + 1}`} />
+                      <button onClick={() => setPosCompetidores(posCompetidores.filter((_, j) => j !== i))}
+                        className="text-xs px-2 py-1 rounded" style={{ color: '#ef4444', border: '1px solid #fecaca' }}>✕</button>
+                    </div>
+                    <div className="flex gap-2">
+                      <input value={c.url} onChange={e => { const n = [...posCompetidores]; n[i] = { ...n[i], url: e.target.value }; setPosCompetidores(n) }}
+                        placeholder="https://competidor.es"
+                        className="flex-1 text-sm rounded-lg px-3 py-2 focus:outline-none"
+                        style={{ border: `1px solid ${borde}`, background: 'transparent', color: texto }} />
+                      {c.nombre && (
+                        <a href={`https://www.google.com/search?q=${encodeURIComponent(c.nombre + ' taller ' + (ciudad || ''))}`} target="_blank" rel="noreferrer"
+                          className="text-xs px-3 py-2 rounded-lg flex-shrink-0 flex items-center"
+                          style={{ border: `1px solid ${borde}`, color: textoSec }}>🔍</a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                {posCompetidores.length < 7 && (
+                  <button onClick={() => setPosCompetidores([...posCompetidores, { nombre: `Competidor ${posCompetidores.length + 1}`, url: '' }])}
+                    className="w-full py-2.5 rounded-xl text-sm mb-4"
+                    style={{ border: `1px dashed ${borde}`, color: textoSec }}>
+                    + Añadir competidor
+                  </button>
+                )}
+
+                <button onClick={analizarTodo}
+                  disabled={posAnalizando || !miUrl.trim()}
+                  className="w-full py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-40"
+                  style={{ background: boton, color: botonTexto }}>
+                  {posAnalizando ? (
+                    <>
+                      <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25"/><path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>
+                      Analizando… {posProgreso}/{posTotal}
+                    </>
+                  ) : '🗺️ Analizar posicionamiento'}
+                </button>
+
+                {/* Progress bar mientras analiza */}
+                {posAnalizando && posTotal > 0 && (
+                  <div className="mt-4">
+                    <div className="h-2 rounded-full" style={{ background: borde }}>
+                      <div className="h-2 rounded-full transition-all" style={{ width: `${(posProgreso / posTotal) * 100}%`, background: primario }} />
+                    </div>
+                    <p className="text-xs text-center mt-1" style={{ color: textoSec }}>Analizando web {posProgreso} de {posTotal}…</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Results ── */}
+            {hasResults && (
+              <div>
+                <div className="flex items-center justify-between mb-5">
+                  <p className="text-xs tracking-widest uppercase font-semibold" style={{ color: textoSec }}>Resultados del análisis</p>
+                  <button onClick={() => { setPosResultados([]); setPosProgreso(0) }}
+                    className="text-xs px-3 py-1.5 rounded-lg"
+                    style={{ border: `1px solid ${borde}`, color: textoSec }}>
+                    ↺ Volver a configurar
+                  </button>
+                </div>
+
+                {/* ── Ranking numérico ── */}
+                <div className="grid gap-3 mb-6" style={{ gridTemplateColumns: `repeat(${Math.min(ranked.length, 4)}, 1fr)` }}>
+                  {ranked.map((r, i) => {
+                    const overall = Math.round((r.seoScore + r.geoScore) / 2)
+                    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`
+                    const isMe = r.esPropio
+                    return (
+                      <div key={i} className="rounded-2xl p-4 text-center relative"
+                        style={{ border: `2px solid ${isMe ? primario : borde}`, background: isMe ? primario + '14' : bg }}>
+                        {isMe && <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 text-xs px-2 py-0.5 rounded-full font-bold text-white" style={{ background: primario }}>TÚ</span>}
+                        <div className="text-2xl mb-1">{medal}</div>
+                        <p className="text-xs font-medium truncate mb-2" style={{ color: texto }}>{r.nombre}</p>
+                        {/* Score ring SVG */}
+                        <div className="flex justify-center mb-2">
+                          <svg width="64" height="64" viewBox="0 0 64 64">
+                            <circle cx="32" cy="32" r="27" fill="none" stroke={borde} strokeWidth="7"/>
+                            <circle cx="32" cy="32" r="27" fill="none"
+                              stroke={overall >= 70 ? '#22c55e' : overall >= 45 ? '#f59e0b' : '#ef4444'}
+                              strokeWidth="7" strokeLinecap="round"
+                              strokeDasharray={`${(overall / 100) * 169.6} 169.6`}
+                              transform="rotate(-90 32 32)"/>
+                            <text x="32" y="37" textAnchor="middle" fontSize="16" fontWeight="bold" fill={texto}>{overall}</text>
+                          </svg>
+                        </div>
+                        <div className="flex justify-center gap-2 text-xs">
+                          <span style={{ color: '#3b82f6' }}>SEO {r.seoScore}</span>
+                          <span style={{ color: textoSec }}>·</span>
+                          <span style={{ color: '#10b981' }}>GEO {r.geoScore}</span>
+                        </div>
+                        {r.error && <p className="text-xs mt-1" style={{ color: '#ef4444' }}>⚠️ {r.error.slice(0, 30)}</p>}
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* ── Mi posición destacada ── */}
+                {yo && (
+                  <div className="rounded-2xl p-5 mb-6 flex items-center gap-5"
+                    style={{ background: `linear-gradient(135deg, ${primario}22, ${primario}08)`, border: `1px solid ${primario}50` }}>
+                    <div className="text-center flex-shrink-0">
+                      <p className="text-5xl font-black" style={{ color: primario }}>#{miRank}</p>
+                      <p className="text-xs font-semibold mt-1" style={{ color: textoSec }}>tu posición</p>
+                    </div>
+                    <div className="flex-1">
+                      {miRank === 1 ? (
+                        <p className="text-sm font-bold mb-1" style={{ color: texto }}>🏆 ¡Lideras el ranking!</p>
+                      ) : (
+                        <p className="text-sm font-bold mb-1" style={{ color: texto }}>
+                          {miRank - 1} competidor{miRank > 2 ? 'es' : ''} por delante
+                        </p>
+                      )}
+                      <div className="flex gap-4">
+                        <div>
+                          <p className="text-xs" style={{ color: textoSec }}>Tu SEO</p>
+                          <p className="text-lg font-bold" style={{ color: '#3b82f6' }}>{yo.seoScore}<span className="text-xs font-normal">/100</span></p>
+                        </div>
+                        <div>
+                          <p className="text-xs" style={{ color: textoSec }}>Tu GEO</p>
+                          <p className="text-lg font-bold" style={{ color: '#10b981' }}>{yo.geoScore}<span className="text-xs font-normal">/100</span></p>
+                        </div>
+                        {lider && !lider.esPropio && (
+                          <div>
+                            <p className="text-xs" style={{ color: textoSec }}>Líder</p>
+                            <p className="text-lg font-bold" style={{ color: texto }}>{Math.round((lider.seoScore + lider.geoScore) / 2)}<span className="text-xs font-normal">/100</span></p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Mapa de calor ── */}
+                <div className="rounded-2xl overflow-hidden mb-6" style={{ border: `1px solid ${borde}` }}>
+                  <div className="px-4 py-3" style={{ background: fondoClaro ? '#f8fafc' : 'rgba(255,255,255,0.04)', borderBottom: `1px solid ${borde}` }}>
+                    <p className="text-xs tracking-widest uppercase font-semibold" style={{ color: textoSec }}>🗺️ Mapa de calor de señales</p>
+                    <p className="text-xs mt-0.5" style={{ color: textoSec }}>Verde = activo · Rojo = ausente</p>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs" style={{ minWidth: 500 }}>
+                      <thead>
+                        <tr style={{ borderBottom: `1px solid ${borde}` }}>
+                          <th className="text-left px-4 py-2.5 font-semibold w-40" style={{ color: textoSec }}>Señal</th>
+                          {ranked.map((r, i) => (
+                            <th key={i} className="px-2 py-2.5 text-center font-semibold" style={{ color: r.esPropio ? primario : textoSec, background: r.esPropio ? primario + '10' : 'transparent' }}>
+                              {r.esPropio ? '⭐ Tú' : r.nombre.split(' ')[0]}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {/* SEO signals group */}
+                        <tr style={{ background: fondoClaro ? '#f1f5f9' : 'rgba(59,130,246,0.06)' }}>
+                          <td colSpan={ranked.length + 1} className="px-4 py-1.5 font-bold text-xs tracking-widest uppercase" style={{ color: '#3b82f6' }}>
+                            SEO
+                          </td>
+                        </tr>
+                        {HEATMAP_SIGNALS.filter(s => s.cat === 'seo').map(sig => (
+                          <tr key={sig.key} style={{ borderBottom: `1px solid ${borde}` }}>
+                            <td className="px-4 py-2 font-medium" style={{ color: texto }}>{sig.label}</td>
+                            {ranked.map((r, i) => {
+                              const val = !!r[sig.key]
+                              return (
+                                <td key={i} className="px-2 py-2 text-center"
+                                  style={{ background: r.esPropio ? primario + '10' : 'transparent' }}>
+                                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-sm font-bold"
+                                    style={{ background: cellBg(val, r.esPropio), color: '#fff' }}>
+                                    {val ? '✓' : '✗'}
+                                  </span>
+                                </td>
+                              )
+                            })}
+                          </tr>
+                        ))}
+                        {/* GEO signals group */}
+                        <tr style={{ background: fondoClaro ? '#f0fdf4' : 'rgba(16,185,129,0.06)' }}>
+                          <td colSpan={ranked.length + 1} className="px-4 py-1.5 font-bold text-xs tracking-widest uppercase" style={{ color: '#10b981' }}>
+                            GEO
+                          </td>
+                        </tr>
+                        {HEATMAP_SIGNALS.filter(s => s.cat === 'geo').map(sig => (
+                          <tr key={sig.key} style={{ borderBottom: `1px solid ${borde}` }}>
+                            <td className="px-4 py-2 font-medium" style={{ color: texto }}>{sig.label}</td>
+                            {ranked.map((r, i) => {
+                              const val = !!r[sig.key]
+                              return (
+                                <td key={i} className="px-2 py-2 text-center"
+                                  style={{ background: r.esPropio ? primario + '10' : 'transparent' }}>
+                                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-sm font-bold"
+                                    style={{ background: cellBg(val, r.esPropio), color: '#fff' }}>
+                                    {val ? '✓' : '✗'}
+                                  </span>
+                                </td>
+                              )
+                            })}
+                          </tr>
+                        ))}
+                        {/* Score row */}
+                        <tr style={{ background: fondoClaro ? '#f8fafc' : 'rgba(255,255,255,0.04)', borderTop: `2px solid ${borde}` }}>
+                          <td className="px-4 py-3 font-bold text-xs" style={{ color: textoSec }}>TOTAL</td>
+                          {ranked.map((r, i) => (
+                            <td key={i} className="px-2 py-3 text-center" style={{ background: r.esPropio ? primario + '10' : 'transparent' }}>
+                              <div>
+                                <span className="font-black text-sm" style={{ color: r.esPropio ? primario : texto }}>
+                                  {Math.round((r.seoScore + r.geoScore) / 2)}
+                                </span>
+                                <span className="text-xs" style={{ color: textoSec }}>/100</span>
+                              </div>
+                            </td>
+                          ))}
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* ── Plan de acción ── */}
+                {yo && acciones.length > 0 && (
+                  <div className="rounded-2xl overflow-hidden mb-5" style={{ border: `1px solid ${borde}` }}>
+                    <div className="px-5 py-4 flex items-center gap-3" style={{ background: fondoClaro ? '#f8fafc' : 'rgba(255,255,255,0.04)', borderBottom: `1px solid ${borde}` }}>
+                      <div>
+                        <p className="text-sm font-bold" style={{ color: texto }}>🚀 Plan de acción para llegar al #1</p>
+                        <p className="text-xs mt-0.5" style={{ color: textoSec }}>{acciones.length} acciones ordenadas por impacto · +{acciones.reduce((s, a) => s + a.pts, 0)} puntos potenciales</p>
+                      </div>
+                    </div>
+                    <div className="p-4 space-y-3">
+                      {acciones.map((acc, i) => (
+                        <div key={acc.key} className="rounded-xl p-4" style={{ background: impactBg[acc.impact] || bgSec, border: `1px solid ${borde}` }}>
+                          <div className="flex items-start gap-3">
+                            <span className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-black text-white"
+                              style={{ background: impactColor[acc.impact] || '#64748b' }}>{i + 1}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                                <p className="text-sm font-semibold" style={{ color: texto }}>{acc.title}</p>
+                                <span className="text-xs px-2 py-0.5 rounded-full font-semibold text-white"
+                                  style={{ background: impactColor[acc.impact] || '#64748b' }}>{acc.impact}</span>
+                                <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+                                  style={{ background: borde, color: textoSec }}>⏱ {acc.effort}</span>
+                                <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
+                                  style={{ background: fondoClaro ? '#eff6ff' : 'rgba(59,130,246,0.15)', color: '#3b82f6' }}>+{acc.pts} pts</span>
+                              </div>
+                              <p className="text-xs leading-relaxed" style={{ color: textoSec }}>{acc.desc}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {miRank === 1 && (
+                      <div className="px-5 pb-4">
+                        <div className="rounded-xl p-4 text-center" style={{ background: fondoClaro ? '#f0fdf4' : 'rgba(34,197,94,0.1)', border: '1px solid #22c55e' }}>
+                          <p className="text-2xl mb-1">🏆</p>
+                          <p className="text-sm font-bold" style={{ color: '#22c55e' }}>¡Eres el #1 en tu análisis!</p>
+                          <p className="text-xs mt-1" style={{ color: textoSec }}>Trabaja en las señales que aún faltan para consolidar tu ventaja y dificultar que te superen.</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {yo && acciones.length === 0 && (
+                  <div className="rounded-2xl p-6 text-center mb-5" style={{ border: '1px solid #22c55e', background: fondoClaro ? '#f0fdf4' : 'rgba(34,197,94,0.08)' }}>
+                    <p className="text-3xl mb-2">🏆</p>
+                    <p className="font-bold" style={{ color: '#22c55e' }}>Puntuación SEO/GEO perfecta</p>
+                    <p className="text-xs mt-1" style={{ color: textoSec }}>Tienes todas las señales activas. Mantén la ficha Google actualizada y sigue generando reseñas para consolidar el #1.</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       {/* ══ ARTÍCULOS ══════════════════════════════════════════════════════════ */}
       {seccion === 'articulos' && (
