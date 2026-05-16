@@ -4,6 +4,13 @@ import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import EmailConfigCard from '../../components/EmailConfigCard'
 import CampaignCard from '../../components/CampaignCard'
+import FacturasTab from '../../components/FacturasTab'
+import OrdenesTab from '../../components/OrdenesTab'
+import PresupuestosTab from '../../components/PresupuestosTab'
+import EstadisticasTab from '../../components/EstadisticasTab'
+import StockTab from '../../components/StockTab'
+import BuscadorGlobal from '../../components/BuscadorGlobal'
+import SoporteChat from '../../components/SoporteChat'
 
 const DIAS_SEMANA = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo']
 const DIAS_CORTO = ['Lu','Ma','Mi','Ju','Vi','Sá','Do']
@@ -32,7 +39,28 @@ export default function Dashboard() {
   const [mensaje, setMensaje] = useState('')
   const [nuevoPin, setNuevoPin] = useState('')
   const [nuevaRecompensa, setNuevaRecompensa] = useState('')
-  const [vista, setVista] = useState<'inicio' | 'clientes' | 'reservas' | 'comunidad' | 'ajustes'>('inicio')
+  const [nif, setNif] = useState('')
+  const [direccionFiscal, setDireccionFiscal] = useState('')
+  const [cpFiscal, setCpFiscal] = useState('')
+  const [ciudadFiscal, setCiudadFiscal] = useState('')
+  const [provincia, setProvincia] = useState('')
+  const [serieFact, setSerieFact] = useState('A')
+  const [recordatoriosActivos, setRecordatoriosActivos] = useState(false)
+  const [recordatorioItvDias, setRecordatorioItvDias] = useState('30')
+  const [recordatorioMantKm, setRecordatorioMantKm] = useState('500')
+  const [notifEstadoActivo, setNotifEstadoActivo] = useState(true)
+  const [notifWhatsappActivo, setNotifWhatsappActivo] = useState(false)
+  const [notifValoracionActivo, setNotifValoracionActivo] = useState(false)
+  const [googleMapsUrl, setGoogleMapsUrl] = useState('')
+  const [telefonoNegocio, setTelefonoNegocio] = useState('')
+  const [direccionNegocio, setDireccionNegocio] = useState('')
+  const [webNegocio, setWebNegocio] = useState('')
+  const [resendFromEmail, setResendFromEmail] = useState('')
+  const [resendFromName, setResendFromName] = useState('')
+  const [catalogo, setCatalogo] = useState<any[]>([])
+  const [catalogoForm, setCatalogoForm] = useState({ nombre: '', descripcion: '', precio: '', tipo_iva: '21', categoria: '' })
+  const [creandoCatalogo, setCreandoCatalogo] = useState(false)
+  const [vista, setVista] = useState<'inicio' | 'clientes' | 'reservas' | 'marketing' | 'ordenes' | 'presupuestos' | 'estadisticas' | 'stock' | 'facturas' | 'ajustes'>('inicio')
   const [vehiculos, setVehiculos] = useState<any[]>([])
   const [vehiculoSeleccionado, setVehiculoSeleccionado] = useState<any>(null)
   const [serviciosVehiculo, setServiciosVehiculo] = useState<any[]>([])
@@ -56,37 +84,119 @@ export default function Dashboard() {
   const [emailConfigs, setEmailConfigs] = useState<any[]>([])
   const [editandoEmailTipo, setEditandoEmailTipo] = useState<string | null>(null)
   const [campaigns, setCampaigns] = useState<any[]>([])
+  const [ordenesResumen, setOrdenesResumen] = useState<{ bloqueadas: number; activas: number }>({ bloqueadas: 0, activas: 0 })
+  const [stockBajo, setStockBajo] = useState<any[]>([])
+  const [citasPendientes, setCitasPendientes] = useState<any[]>([])
+  const [sellosMes, setSellosMes] = useState(0)
+  const [canjesMes, setCanjesMes] = useState(0)
+  const [darSelloCliente, setDarSelloCliente] = useState<string | null>(null)
+  const [segmentoActivo, setSegmentoActivo] = useState<string | null>(null)
+  const [seccionMarketing, setSeccionMarketing] = useState<'fidelizacion' | 'resenas' | 'campanas'>('fidelizacion')
+  const [waMensaje, setWaMensaje] = useState('Hola [nombre], te escribimos desde [NEGOCIO]. ¡Recuerda que tienes sellos pendientes en tu tarjeta de fidelización! Visítanos pronto 🚗')
+  const [waFiltros, setWaFiltros] = useState<any>({ actividad: '', diasInactividad: 30, sellos: '', minSellos: 5 })
+  const [enviandoWa, setEnviandoWa] = useState(false)
+  const [resultadoWa, setResultadoWa] = useState<any>(null)
+  const [busquedaResena, setBusquedaResena] = useState('')
+  const [enviandoResena, setEnviandoResena] = useState(false)
 
   useEffect(() => {
     async function cargarDatos() {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) { router.push('/dashboard/login'); return }
-      const { data: rest } = await supabase.from('restaurants').select('*').eq('slug', slug).eq('owner_id', session.user.id).single()
-      if (!rest) { router.push('/dashboard/login'); return }
-      setRestaurante(rest)
-      setNuevoPin(rest.pin)
-      setNuevaRecompensa(rest.recompensa)
-      const { count: totalClientes } = await supabase.from('loyalty_cards').select('*', { count: 'exact', head: true }).eq('restaurant_id', rest.id)
-      const { count: totalSellos } = await supabase.from('stamp_events').select('*', { count: 'exact', head: true }).eq('tipo', 'sello')
-      const { count: totalCanjes } = await supabase.from('stamp_events').select('*', { count: 'exact', head: true }).eq('tipo', 'canje')
-      setStats({ clientes: totalClientes || 0, sellos: totalSellos || 0, canjes: totalCanjes || 0 })
-      const { data: res } = await supabase.from('bookings').select('*').eq('restaurant_id', rest.id).order('fecha', { ascending: true }).order('hora', { ascending: true })
-      setReservas(res || [])
-      const { data: clientesData } = await supabase.from('loyalty_cards').select('*, customers(id, email, nombre, apellidos, telefono_nuevo, prefijo_telefono, dni, direccion, ciudad, codigo_postal)').eq('restaurant_id', rest.id).order('actualizado_en', { ascending: false })
-      setClientes(clientesData || [])
-      const { data: serviciosData } = await supabase.from('vehicle_services').select('tipo_servicio').eq('restaurant_id', rest.id)
-      const conteo: any = {}
-      serviciosData?.forEach(s => { conteo[s.tipo_servicio] = (conteo[s.tipo_servicio] || 0) + 1 })
-      setStatsServicios(conteo)
-      const { data: svcsNegocio } = await supabase.from('services').select('*').eq('restaurant_id', rest.id).order('nombre')
-      setServiciosNegocio(svcsNegocio || [])
-      const { data: horariosData } = await supabase.from('horarios').select('*').eq('restaurant_id', rest.id)
-      setHorarios(horariosData || [])
-      const { data: emailConfigData } = await supabase.from('email_config').select('*').eq('restaurant_id', rest.id)
-      setEmailConfigs(emailConfigData || [])
-      const { data: campaignsData } = await supabase.from('campaigns').select('*').eq('restaurant_id', rest.id).order('creado_en', { ascending: false }).limit(10)
-      setCampaigns(campaignsData || [])
-      setCargando(false)
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session) { router.push('/dashboard/login'); return }
+        const { data: rest } = await supabase.from('restaurants').select('*').eq('slug', slug).eq('owner_id', session.user.id).single()
+        if (!rest) { router.push('/dashboard/login'); return }
+        setRestaurante(rest)
+        setNuevoPin(rest.pin)
+        setNuevaRecompensa(rest.recompensa)
+        setNif(rest.nif || '')
+        setDireccionFiscal(rest.direccion_fiscal || '')
+        setCpFiscal(rest.codigo_postal_fiscal || '')
+        setCiudadFiscal(rest.ciudad_fiscal || '')
+        setProvincia(rest.provincia || '')
+        setSerieFact(rest.serie_factura || 'A')
+        setRecordatoriosActivos(rest.recordatorios_activos || false)
+        setRecordatorioItvDias(String(rest.recordatorio_itv_dias || 30))
+        setRecordatorioMantKm(String(rest.recordatorio_mant_km || 500))
+        setNotifEstadoActivo(rest.notif_estado_activo !== false)
+        setNotifWhatsappActivo(rest.notif_whatsapp_activo || false)
+        setNotifValoracionActivo(rest.notif_valoracion_activo || false)
+        setGoogleMapsUrl(rest.google_maps_url || '')
+        setTelefonoNegocio(rest.telefono || '')
+        setDireccionNegocio(rest.direccion || '')
+        setWebNegocio(rest.web || '')
+        setResendFromEmail(rest.resend_from_email || '')
+        setResendFromName(rest.resend_from_name || '')
+
+        // Carga en paralelo para mayor velocidad
+        const [
+          { count: totalClientes },
+          { data: clientesData },
+          { data: res },
+          { data: serviciosData },
+          { data: svcsNegocio },
+          { data: horariosData },
+          { data: emailConfigData },
+          { data: campaignsData },
+          { data: ordenesData },
+          { data: stockData },
+          { data: citasData },
+          { data: catalogoData },
+        ] = await Promise.all([
+          supabase.from('loyalty_cards').select('*', { count: 'exact', head: true }).eq('restaurant_id', rest.id),
+          supabase.from('loyalty_cards').select('*, customers(id, email, nombre, apellidos, telefono_nuevo, prefijo_telefono, dni, direccion, ciudad, codigo_postal)').eq('restaurant_id', rest.id).order('actualizado_en', { ascending: false }),
+          supabase.from('bookings').select('*').eq('restaurant_id', rest.id).order('fecha', { ascending: true }).order('hora', { ascending: true }),
+          supabase.from('vehicle_services').select('tipo_servicio').eq('restaurant_id', rest.id),
+          supabase.from('services').select('*').eq('restaurant_id', rest.id).order('nombre'),
+          supabase.from('horarios').select('*').eq('restaurant_id', rest.id),
+          supabase.from('email_config').select('*').eq('restaurant_id', rest.id),
+          supabase.from('campaigns').select('*').eq('restaurant_id', rest.id).order('creado_en', { ascending: false }).limit(10),
+          supabase.from('orders').select('id, bloqueada, estado').eq('restaurant_id', rest.id),
+          supabase.from('stock').select('id, nombre, cantidad, cantidad_minima').eq('restaurant_id', rest.id),
+          supabase.from('bookings').select('*').eq('restaurant_id', rest.id).eq('origen', 'portal').eq('estado', 'pendiente').order('creado_en', { ascending: false }),
+          supabase.from('catalogo_servicios').select('*').eq('restaurant_id', rest.id).order('nombre'),
+        ])
+
+        // Sellos/canjes del mes — calculados desde clientesData para evitar
+        // queries sin filtro de restaurant_id en stamp_events
+        const cards = clientesData || []
+        setClientes(cards)
+        setStats({ clientes: totalClientes || 0, sellos: 0, canjes: 0 })
+
+        // Contamos sellos/canjes del mes desde los card_ids de este restaurante
+        if (cards.length > 0) {
+          const cardIds = cards.map((c: any) => c.id)
+          const inicioMes = new Date(); inicioMes.setDate(1); inicioMes.setHours(0,0,0,0)
+          const [{ count: cntSellos }, { count: cntCanjes }] = await Promise.all([
+            supabase.from('stamp_events').select('*', { count: 'exact', head: true }).eq('tipo', 'sello').in('card_id', cardIds).gte('creado_en', inicioMes.toISOString()),
+            supabase.from('stamp_events').select('*', { count: 'exact', head: true }).eq('tipo', 'canje').in('card_id', cardIds).gte('creado_en', inicioMes.toISOString()),
+          ])
+          setSellosMes(cntSellos || 0)
+          setCanjesMes(cntCanjes || 0)
+        }
+
+        const conteo: any = {}
+        serviciosData?.forEach((s: any) => { conteo[s.tipo_servicio] = (conteo[s.tipo_servicio] || 0) + 1 })
+        setStatsServicios(conteo)
+        setReservas(res || [])
+        setServiciosNegocio(svcsNegocio || [])
+        setHorarios(horariosData || [])
+        setEmailConfigs(emailConfigData || [])
+        setCampaigns(campaignsData || [])
+        if (ordenesData) {
+          setOrdenesResumen({
+            bloqueadas: ordenesData.filter((o: any) => o.bloqueada).length,
+            activas: ordenesData.filter((o: any) => !['entregado'].includes(o.estado)).length,
+          })
+        }
+        setStockBajo((stockData || []).filter((s: any) => s.cantidad <= s.cantidad_minima))
+        setCitasPendientes(citasData || [])
+        setCatalogo(catalogoData || [])
+      } catch (e) {
+        console.error('Error cargando dashboard:', e)
+      } finally {
+        setCargando(false)
+      }
     }
     cargarDatos()
 
@@ -342,6 +452,43 @@ export default function Dashboard() {
     setCreando(false)
   }
 
+  async function darSello(c: any) {
+    if (darSelloCliente) return
+    setDarSelloCliente(c.id)
+    const sellosNecesarios = restaurante.sellos_necesarios || 10
+    const nuevosSellos = (c.sellos_actuales || 0) + 1
+    const completa = nuevosSellos >= sellosNecesarios
+    const ahora = new Date().toISOString()
+    await supabase.from('loyalty_cards').update({
+      sellos_actuales: completa ? 0 : nuevosSellos,
+      total_canjes: completa ? (c.total_canjes || 0) + 1 : (c.total_canjes || 0),
+      actualizado_en: ahora,
+    }).eq('id', c.id)
+    await supabase.from('stamp_events').insert({ card_id: c.id, tipo: 'sello' })
+    if (completa) await supabase.from('stamp_events').insert({ card_id: c.id, tipo: 'canje' })
+    const updated = {
+      ...c,
+      sellos_actuales: completa ? 0 : nuevosSellos,
+      total_canjes: completa ? (c.total_canjes || 0) + 1 : (c.total_canjes || 0),
+      actualizado_en: ahora,
+    }
+    setClientes(prev => prev.map(cl => cl.id === c.id ? updated : cl))
+    if (clienteSeleccionado?.id === c.id) {
+      setClienteSeleccionado(updated)
+      const { data: h } = await supabase.from('stamp_events').select('*').eq('card_id', c.id).order('creado_en', { ascending: false })
+      setHistorial(h || [])
+    }
+    if (completa) {
+      setMensaje(`🎁 ¡Tarjeta completa! Premio canjeado para ${c.customers?.nombre || c.customers?.email || 'el cliente'}`)
+      setTimeout(() => setMensaje(''), 5000)
+      setSellosMes(p => p + 1)
+      setCanjesMes(p => p + 1)
+    } else {
+      setSellosMes(p => p + 1)
+    }
+    setDarSelloCliente(null)
+  }
+
   async function eliminarCliente(c: any) {
     if (!confirm('¿Eliminar este cliente? Se borrarán sus sellos y historial.')) return
     await supabase.from('stamp_events').delete().eq('card_id', c.id)
@@ -349,10 +496,28 @@ export default function Dashboard() {
     setClientes(clientes.filter(cl => cl.id !== c.id))
   }
 
+
   async function guardarCambios() {
     setGuardando(true)
     setMensaje('')
-    await supabase.from('restaurants').update({ pin: nuevoPin, recompensa: nuevaRecompensa }).eq('id', restaurante.id)
+    await supabase.from('restaurants').update({
+      pin: nuevoPin, recompensa: nuevaRecompensa,
+      nif, direccion_fiscal: direccionFiscal, codigo_postal_fiscal: cpFiscal,
+      ciudad_fiscal: ciudadFiscal, provincia, serie_factura: serieFact,
+      recordatorios_activos: recordatoriosActivos,
+      recordatorio_itv_dias: parseInt(recordatorioItvDias) || 30,
+      recordatorio_mant_km: parseInt(recordatorioMantKm) || 500,
+      notif_estado_activo: notifEstadoActivo,
+      notif_whatsapp_activo: notifWhatsappActivo,
+      notif_valoracion_activo: notifValoracionActivo,
+      google_maps_url: googleMapsUrl || null,
+      telefono: telefonoNegocio || null,
+      direccion: direccionNegocio || null,
+      web: webNegocio || null,
+      resend_from_email: resendFromEmail || null,
+      resend_from_name: resendFromName || null,
+    }).eq('id', restaurante.id)
+    setRestaurante((r: any) => ({ ...r, nif, direccion_fiscal: direccionFiscal, codigo_postal_fiscal: cpFiscal, ciudad_fiscal: ciudadFiscal, provincia, serie_factura: serieFact, recordatorios_activos: recordatoriosActivos }))
     setMensaje('✓ Cambios guardados')
     setGuardando(false)
   }
@@ -788,7 +953,12 @@ export default function Dashboard() {
     { key: 'inicio', label: 'Inicio', icon: '⌂' },
     { key: 'clientes', label: 'Clientes', icon: '👤' },
     { key: 'reservas', label: 'Reservas', icon: '📅' },
-    { key: 'comunidad', label: 'Comunidad', icon: '✉' },
+    { key: 'marketing', label: 'Marketing', icon: '📣' },
+    { key: 'ordenes', label: 'Órdenes', icon: '🔧' },
+    { key: 'presupuestos', label: 'Presupuestos', icon: '📋' },
+    { key: 'estadisticas', label: 'Estadísticas', icon: '📊' },
+    { key: 'stock', label: 'Stock', icon: '📦' },
+    { key: 'facturas', label: 'Facturas', icon: '🧾' },
     { key: 'ajustes', label: 'Ajustes', icon: '⚙' },
   ]
 
@@ -796,19 +966,114 @@ export default function Dashboard() {
     <div className="flex-1 p-6 pb-24 md:pb-6 overflow-y-auto">
       {vista === 'inicio' && (
         <>
-          <h2 className="text-2xl font-bold mb-6" style={{ color: texto }}>Inicio</h2>
-          <div className="grid grid-cols-3 gap-3 mb-6">
-            {[{ label: 'Clientes', value: stats.clientes }, { label: 'Canjes', value: stats.canjes }, { label: 'Sellos', value: stats.sellos }].map(({ label, value }) => (
-              <div key={label} className="rounded-xl p-4 text-center" style={{ border: `1px solid ${borde}` }}>
-                <p className="text-3xl font-bold" style={{ color: texto }}>{value}</p>
-                <p className="text-xs tracking-widest uppercase mt-1" style={{ color: textoSec }}>{label}</p>
-              </div>
+          <h2 className="text-2xl font-bold mb-1" style={{ color: texto }}>Inicio</h2>
+          <p className="text-sm mb-6" style={{ color: textoSec }}>
+            {new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+          </p>
+
+          {/* Panel de alertas */}
+          {(citasPendientes.length > 0 || ordenesResumen.bloqueadas > 0 || stockBajo.length > 0) && (
+            <div className="mb-5 space-y-2">
+              {citasPendientes.length > 0 && (
+                <button onClick={() => setVista('reservas')} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all hover:opacity-90"
+                  style={{ background: '#fef9c3', border: '1px solid #fde047' }}>
+                  <span className="text-xl flex-shrink-0">📅</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-yellow-800">{citasPendientes.length} solicitud{citasPendientes.length > 1 ? 'es' : ''} de cita pendiente{citasPendientes.length > 1 ? 's' : ''} del portal</p>
+                    <p className="text-xs text-yellow-700 mt-0.5">La{citasPendientes.length > 1 ? 's' : ''} más reciente: {citasPendientes[0]?.customer_name} — {citasPendientes[0]?.servicio || 'Sin servicio especificado'}</p>
+                  </div>
+                  <span className="text-yellow-600 flex-shrink-0">→</span>
+                </button>
+              )}
+              {ordenesResumen.bloqueadas > 0 && (
+                <button onClick={() => setVista('ordenes')} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all hover:opacity-90"
+                  style={{ background: '#fef2f2', border: '1px solid #fecaca' }}>
+                  <span className="text-xl flex-shrink-0">🔴</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-red-700">{ordenesResumen.bloqueadas} orden{ordenesResumen.bloqueadas > 1 ? 'es' : ''} bloqueada{ordenesResumen.bloqueadas > 1 ? 's' : ''}</p>
+                    <p className="text-xs text-red-600 mt-0.5">Requieren atención antes de continuar</p>
+                  </div>
+                  <span className="text-red-400 flex-shrink-0">→</span>
+                </button>
+              )}
+              {stockBajo.length > 0 && (
+                <button onClick={() => setVista('stock')} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all hover:opacity-90"
+                  style={{ background: '#fff7ed', border: '1px solid #fed7aa' }}>
+                  <span className="text-xl flex-shrink-0">📦</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-orange-700">{stockBajo.length} artículo{stockBajo.length > 1 ? 's' : ''} con stock bajo</p>
+                    <p className="text-xs text-orange-600 mt-0.5 truncate">{stockBajo.slice(0, 3).map(s => s.nombre).join(', ')}{stockBajo.length > 3 ? '…' : ''}</p>
+                  </div>
+                  <span className="text-orange-400 flex-shrink-0">→</span>
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Accesos rápidos */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+            {[
+              { label: 'Nueva orden', icon: '🔧', action: () => setVista('ordenes'), color: primario },
+              { label: 'Nuevo presupuesto', icon: '📋', action: () => setVista('presupuestos'), color: '#8b5cf6' },
+              { label: 'Ver estadísticas', icon: '📊', action: () => setVista('estadisticas'), color: '#3b82f6' },
+              { label: 'Nueva cita', icon: '📅', action: () => setVista('reservas'), color: '#10b981' },
+            ].map(a => (
+              <button key={a.label} onClick={a.action}
+                className="rounded-xl p-4 text-left transition-all hover:shadow-sm"
+                style={{ border: `1px solid ${borde}`, background: fondoClaro ? '#fff' : fondo }}>
+                <span className="text-2xl">{a.icon}</span>
+                <p className="text-xs font-semibold mt-2" style={{ color: a.color }}>{a.label}</p>
+              </button>
             ))}
           </div>
+
+          {/* KPIs rápidos */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+            {[
+              { label: 'Órdenes activas', value: ordenesResumen.activas, icon: '🔧', action: () => setVista('ordenes') },
+              { label: 'Clientes', value: stats.clientes, icon: '👤', action: () => setVista('clientes') },
+              { label: 'Sellos dados', value: stats.sellos, icon: '⭐', action: undefined },
+              { label: 'Canjes', value: stats.canjes, icon: '🎁', action: undefined },
+            ].map(({ label, value, icon, action }) => (
+              <button key={label} onClick={action} disabled={!action}
+                className="rounded-xl p-4 text-center transition-all disabled:cursor-default"
+                style={{ border: `1px solid ${borde}`, background: fondoClaro ? '#fff' : fondo }}>
+                <p className="text-xl mb-1">{icon}</p>
+                <p className="text-2xl font-bold" style={{ color: texto }}>{value}</p>
+                <p className="text-xs tracking-widest uppercase mt-1" style={{ color: textoSec }}>{label}</p>
+              </button>
+            ))}
+          </div>
+
+          {/* Próximas reservas */}
+          <div className="rounded-xl p-5 mb-4" style={{ border: `1px solid ${borde}`, background: fondoClaro ? '#fff' : fondo }}>
+            <div className="flex justify-between items-center mb-3">
+              <p className="text-xs tracking-widest uppercase font-semibold" style={{ color: textoSec }}>Próximas citas</p>
+              <button onClick={() => setVista('reservas')} className="text-xs" style={{ color: primario }}>Ver todas →</button>
+            </div>
+            {reservas.filter(r => r.estado !== 'cancelada').slice(0, 4).length === 0 ? (
+              <p className="text-sm" style={{ color: textoSec }}>No hay citas próximas</p>
+            ) : (
+              reservas.filter(r => r.estado !== 'cancelada').slice(0, 4).map(r => (
+                <div key={r.id} className="flex justify-between py-2.5" style={{ borderBottom: `1px solid ${bordeClaro}` }}>
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: texto }}>{r.customer_name}</p>
+                    <p className="text-xs" style={{ color: textoSec }}>{r.servicio}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs font-semibold" style={{ color: primario }}>{r.hora?.slice(0, 5)}</p>
+                    <p className="text-xs" style={{ color: textoSec }}>{new Date(r.fecha + 'T00:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Servicios más frecuentes */}
           {Object.keys(statsServicios).length > 0 && (
-            <div className="rounded-xl p-5 mb-6" style={{ border: `1px solid ${borde}` }}>
-              <p className="text-xs tracking-widest uppercase mb-3" style={{ color: textoSec }}>Servicios realizados</p>
-              {Object.entries(statsServicios).sort((a: any, b: any) => b[1] - a[1]).map(([tipo, count]: any) => (
+            <div className="rounded-xl p-5" style={{ border: `1px solid ${borde}`, background: fondoClaro ? '#fff' : fondo }}>
+              <p className="text-xs tracking-widest uppercase mb-3 font-semibold" style={{ color: textoSec }}>Servicios más frecuentes</p>
+              {Object.entries(statsServicios).sort((a: any, b: any) => b[1] - a[1]).slice(0, 5).map(([tipo, count]: any) => (
                 <div key={tipo} className="flex justify-between py-2" style={{ borderBottom: `1px solid ${bordeClaro}` }}>
                   <p className="text-sm" style={{ color: texto }}>{tipo}</p>
                   <p className="text-sm font-bold" style={{ color: primario }}>{count}</p>
@@ -816,20 +1081,6 @@ export default function Dashboard() {
               ))}
             </div>
           )}
-          <div className="rounded-xl p-5" style={{ border: `1px solid ${borde}` }}>
-            <p className="text-xs tracking-widest uppercase mb-3" style={{ color: textoSec }}>Próximas reservas</p>
-            {reservas.filter(r => r.estado !== 'cancelada').slice(0, 5).length === 0 ? (
-              <p className="text-sm" style={{ color: textoSec }}>No hay reservas próximas</p>
-            ) : (
-              reservas.filter(r => r.estado !== 'cancelada').slice(0, 5).map(r => (
-                <div key={r.id} className="py-3" style={{ borderBottom: `1px solid ${bordeClaro}` }}>
-                  <p className="font-medium" style={{ color: texto }}>{r.customer_name}</p>
-                  <p className="text-sm" style={{ color: textoSec }}>{r.fecha} · {r.hora} · {r.servicio}</p>
-                </div>
-              ))
-            )}
-            <button onClick={() => setVista('reservas')} className="w-full mt-3 text-xs tracking-widest uppercase" style={{ color: textoSec }}>Ver todas →</button>
-          </div>
         </>
       )}
 
@@ -919,10 +1170,55 @@ export default function Dashboard() {
             <h1 className="text-2xl font-bold break-all" style={{ color: texto }}>{clienteSeleccionado.customers?.nombre ? `${clienteSeleccionado.customers.nombre} ${clienteSeleccionado.customers.apellidos || ''}` : clienteSeleccionado.customers?.email || 'Sin email'}</h1>
             {clienteSeleccionado.customers?.nombre && <p className="text-sm mt-1" style={{ color: textoSec }}>{clienteSeleccionado.customers?.email}</p>}
           </div>
-          <div className="grid grid-cols-3 gap-3 mb-4">
+          {/* Tarjeta visual de sellos */}
+          {(() => {
+            const sellosNecesarios = restaurante.sellos_necesarios || 10
+            const sellosActuales = clienteSeleccionado.sellos_actuales || 0
+            const completa = sellosActuales >= sellosNecesarios
+            return (
+              <div className="rounded-xl p-5 mb-5" style={{ border: `1px solid ${completa ? '#fde047' : borde}`, background: completa ? (fondoClaro ? '#fefce8' : 'rgba(234,179,8,0.05)') : (fondoClaro ? '#fff' : fondo) }}>
+                <div className="flex justify-between items-center mb-3">
+                  <p className="text-xs tracking-widest uppercase font-semibold" style={{ color: textoSec }}>Tarjeta de fidelización</p>
+                  <p className="text-sm font-bold" style={{ color: completa ? '#ca8a04' : primario }}>{sellosActuales}/{sellosNecesarios}</p>
+                </div>
+                {/* Sellos visuales */}
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {Array.from({ length: sellosNecesarios }).map((_, i) => (
+                    <div key={i} className="w-7 h-7 rounded-full flex items-center justify-center text-xs transition-all"
+                      style={{
+                        background: i < sellosActuales ? primario : 'transparent',
+                        border: `2px solid ${i < sellosActuales ? primario : borde}`,
+                        color: i < sellosActuales ? botonTexto : textoSec,
+                      }}>
+                      {i < sellosActuales ? '★' : ''}
+                    </div>
+                  ))}
+                </div>
+                {/* Barra de progreso */}
+                <div className="w-full h-1.5 rounded-full mb-4" style={{ background: borde }}>
+                  <div className="h-1.5 rounded-full transition-all" style={{ width: `${Math.min(100, (sellosActuales / sellosNecesarios) * 100)}%`, background: primario }} />
+                </div>
+                {completa ? (
+                  <div className="rounded-xl p-4 text-center mb-3" style={{ background: '#fef9c3', border: '1px solid #fde047' }}>
+                    <p className="text-base font-bold text-yellow-800">🎁 ¡Tarjeta completa!</p>
+                    <p className="text-sm text-yellow-700 mt-0.5">{restaurante.recompensa}</p>
+                  </div>
+                ) : null}
+                <button onClick={() => darSello(clienteSeleccionado)} disabled={darSelloCliente === clienteSeleccionado.id}
+                  className="w-full py-3 rounded-xl font-bold text-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                  style={{ background: boton, color: botonTexto }}>
+                  {darSelloCliente === clienteSeleccionado.id
+                    ? <><span className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: botonTexto, borderTopColor: 'transparent' }} /> Dando sello...</>
+                    : '⭐ Dar sello'}
+                </button>
+              </div>
+            )
+          })()}
+          {/* Stats */}
+          <div className="grid grid-cols-3 gap-3 mb-5">
             {[{ label: 'Sellos', value: clienteSeleccionado.sellos_actuales }, { label: 'Canjes', value: clienteSeleccionado.total_canjes }, { label: 'Visitas', value: historial.filter(h => h.tipo === 'sello').length }].map(({ label, value }) => (
               <div key={label} className="rounded-xl p-4 text-center" style={{ border: `1px solid ${borde}` }}>
-                <p className="text-3xl font-bold" style={{ color: texto }}>{value}</p>
+                <p className="text-2xl font-bold" style={{ color: texto }}>{value}</p>
                 <p className="text-xs tracking-widest uppercase mt-1" style={{ color: textoSec }}>{label}</p>
               </div>
             ))}
@@ -1055,9 +1351,59 @@ export default function Dashboard() {
       {vista === 'reservas' && (
         <>
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold" style={{ color: texto }}>Reservas</h2>
+            <h2 className="text-2xl font-bold" style={{ color: texto }}>
+              Reservas
+              {citasPendientes.length > 0 && (
+                <span className="ml-2 text-sm px-2 py-0.5 rounded-full font-semibold" style={{ background: '#fde047', color: '#713f12' }}>{citasPendientes.length}</span>
+              )}
+            </h2>
             <button onClick={() => { setCreandoReserva(true); setEditandoReservaId(null); resetReservaForm() }} className="text-xs font-semibold px-4 py-2 rounded-xl" style={{ background: boton, color: botonTexto }}>+ Añadir</button>
           </div>
+
+          {/* Solicitudes del portal */}
+          {citasPendientes.length > 0 && (
+            <div className="mb-6 rounded-xl overflow-hidden" style={{ border: '1px solid #fde047' }}>
+              <div className="px-4 py-3 flex items-center gap-2" style={{ background: '#fef9c3' }}>
+                <span>📅</span>
+                <p className="text-sm font-semibold text-yellow-800">Solicitudes del portal ({citasPendientes.length})</p>
+              </div>
+              {citasPendientes.map(c => (
+                <div key={c.id} className="px-4 py-3 flex items-start gap-3" style={{ borderTop: '1px solid #fde047', background: fondoClaro ? '#fff' : fondo }}>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold" style={{ color: texto }}>{c.customer_name}</p>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {c.customer_phone && <a href={`tel:${c.customer_phone}`} className="text-xs" style={{ color: primario }}>📞 {c.customer_phone}</a>}
+                      {c.servicio && <span className="text-xs" style={{ color: textoSec }}>· {c.servicio}</span>}
+                      {c.fecha && <span className="text-xs" style={{ color: textoSec }}>· {new Date(c.fecha + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}{c.hora ? ` ${c.hora.slice(0,5)}` : ''}</span>}
+                    </div>
+                    {c.notas && <p className="text-xs mt-1 italic" style={{ color: textoSec }}>{c.notas}</p>}
+                  </div>
+                  <div className="flex gap-1.5 flex-shrink-0">
+                    <button
+                      onClick={async () => {
+                        await fetch(`/api/bookings/${c.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ estado: 'confirmada' }) })
+                        setCitasPendientes(prev => prev.filter(x => x.id !== c.id))
+                        setReservas(prev => prev.map(r => r.id === c.id ? { ...r, estado: 'confirmada' } : r))
+                      }}
+                      className="text-xs px-2.5 py-1.5 rounded-lg font-medium"
+                      style={{ background: '#dcfce7', color: '#16a34a' }}>
+                      ✓ Confirmar
+                    </button>
+                    <button
+                      onClick={async () => {
+                        await fetch(`/api/bookings/${c.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ estado: 'cancelada' }) })
+                        setCitasPendientes(prev => prev.filter(x => x.id !== c.id))
+                        setReservas(prev => prev.map(r => r.id === c.id ? { ...r, estado: 'cancelada' } : r))
+                      }}
+                      className="text-xs px-2.5 py-1.5 rounded-lg"
+                      style={{ background: '#fee2e2', color: '#dc2626' }}>
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
           {(creandoReserva || editandoReservaId) && (
             <div className="mb-6 max-w-md">
               {editandoReservaId ? formReserva(editarReserva, () => { setEditandoReservaId(null); resetReservaForm() }, 'Editar reserva') : formReserva(crearReserva, () => { setCreandoReserva(false); resetReservaForm() }, 'Nueva reserva')}
@@ -1076,13 +1422,420 @@ export default function Dashboard() {
           {vistaReservas === 'año' && <VistaAño />}
         </>
       )}
-        {vista === 'comunidad' && (
+        {vista === 'marketing' && (() => {
+          const sellosNecesarios = restaurante.sellos_necesarios || 10
+          const ahora = Date.now()
+          const casiCompletan = clientes.filter(c => c.sellos_actuales >= sellosNecesarios - 2 && c.sellos_actuales > 0)
+          const inactivos = clientes.filter(c => c.actualizado_en && (ahora - new Date(c.actualizado_en).getTime()) > 60 * 24 * 60 * 60 * 1000)
+          const nuevos = clientes.filter(c => c.creado_en && (ahora - new Date(c.creado_en).getTime()) < 30 * 24 * 60 * 60 * 1000)
+          const topClientes = [...clientes].sort((a, b) => (b.total_canjes || 0) - (a.total_canjes || 0)).slice(0, 5)
+          const activos = clientes.filter(c => c.actualizado_en && (ahora - new Date(c.actualizado_en).getTime()) < 90 * 24 * 60 * 60 * 1000)
+          const segmentos: Record<string, any[]> = { casi_completan: casiCompletan, inactivos, nuevos, top: topClientes }
+          const segInfo = [
+            { key: 'casi_completan', label: 'Casi completan', icon: '🏁', color: '#f59e0b', desc: `A 1-2 sellos del premio` },
+            { key: 'inactivos', label: 'Inactivos +60 días', icon: '😴', color: '#ef4444', desc: 'Sin visita en más de 2 meses' },
+            { key: 'nuevos', label: 'Nuevos este mes', icon: '🆕', color: '#10b981', desc: 'Últimos 30 días' },
+            { key: 'top', label: 'Más fieles', icon: '⭐', color: '#8b5cf6', desc: 'Por canjes acumulados' },
+          ]
+          const clientesConTelefono = clientes.filter(c => c.customers?.telefono_nuevo)
+          return (
+          <>
+            <h2 className="text-2xl font-bold mb-1" style={{ color: texto }}>Marketing</h2>
+            <p className="text-sm mb-4" style={{ color: textoSec }}>Fidelización, reseñas y campañas</p>
+
+            {/* Sub-navegación interna */}
+            <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
+              {[
+                { key: 'fidelizacion', label: '⭐ Fidelización' },
+                { key: 'resenas', label: '⭐ Reseñas Google' },
+                { key: 'campanas', label: '📣 Campañas' },
+              ].map(s => (
+                <button key={s.key} onClick={() => setSeccionMarketing(s.key as any)}
+                  className="px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all flex-shrink-0"
+                  style={{
+                    background: seccionMarketing === s.key ? primario : (fondoClaro ? '#fff' : fondo),
+                    color: seccionMarketing === s.key ? botonTexto : textoSec,
+                    border: `1px solid ${seccionMarketing === s.key ? primario : borde}`,
+                  }}>
+                  {s.label}
+                </button>
+              ))}
+            </div>
+
+            {/* ══ FIDELIZACIÓN ══ */}
+            {seccionMarketing === 'fidelizacion' && <div>
+
+            {/* KPIs */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+              {[
+                { label: 'Total clientes', value: stats.clientes, icon: '👥' },
+                { label: 'Sellos este mes', value: sellosMes, icon: '⭐' },
+                { label: 'Canjes este mes', value: canjesMes, icon: '🎁' },
+                { label: 'Activos 90 días', value: activos.length, icon: '🔥' },
+              ].map(({ label, value, icon }) => (
+                <div key={label} className="rounded-xl p-4 text-center" style={{ border: `1px solid ${borde}`, background: fondoClaro ? '#fff' : fondo }}>
+                  <p className="text-xl mb-1">{icon}</p>
+                  <p className="text-2xl font-bold" style={{ color: texto }}>{value}</p>
+                  <p className="text-xs tracking-widest uppercase mt-1" style={{ color: textoSec }}>{label}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Segmentos */}
+            <p className="text-xs tracking-widest uppercase mb-3 font-semibold" style={{ color: textoSec }}>Segmentos</p>
+            <div className="grid grid-cols-2 gap-3 mb-6">
+              {segInfo.map(seg => {
+                const count = segmentos[seg.key]?.length || 0
+                const activo = segmentoActivo === seg.key
+                return (
+                  <button key={seg.key}
+                    onClick={() => setSegmentoActivo(activo ? null : seg.key)}
+                    className="rounded-xl p-4 text-left transition-all"
+                    style={{ border: `1px solid ${activo ? seg.color : borde}`, background: activo ? seg.color + '12' : (fondoClaro ? '#fff' : fondo) }}>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xl">{seg.icon}</span>
+                      <span className="text-xl font-bold" style={{ color: count > 0 ? seg.color : textoSec }}>{count}</span>
+                    </div>
+                    <p className="text-sm font-semibold" style={{ color: texto }}>{seg.label}</p>
+                    <p className="text-xs mt-0.5" style={{ color: textoSec }}>{seg.desc}</p>
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Lista del segmento activo */}
+            {segmentoActivo && segmentos[segmentoActivo]?.length > 0 && (
+              <div className="rounded-xl mb-6 overflow-hidden" style={{ border: `1px solid ${borde}` }}>
+                <p className="px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: textoSec, borderBottom: `1px solid ${borde}` }}>
+                  {segInfo.find(s => s.key === segmentoActivo)?.label}
+                </p>
+                {segmentos[segmentoActivo].map((c: any) => {
+                  const nombre = [c.customers?.nombre, c.customers?.apellidos].filter(Boolean).join(' ') || c.customers?.email || 'Sin nombre'
+                  const progreso = Math.round(((c.sellos_actuales || 0) / sellosNecesarios) * 100)
+                  return (
+                    <div key={c.id} className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: `1px solid ${bordeClaro}` }}>
+                      <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold" style={{ background: primario + '18', color: primario }}>
+                        {(c.customers?.nombre?.[0] || c.customers?.email?.[0] || '?').toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate" style={{ color: texto }}>{nombre}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <div className="flex-1 h-1.5 rounded-full" style={{ background: borde }}>
+                            <div className="h-1.5 rounded-full" style={{ width: `${progreso}%`, background: primario }} />
+                          </div>
+                          <span className="text-xs flex-shrink-0" style={{ color: textoSec }}>{c.sellos_actuales}/{sellosNecesarios}</span>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 flex-shrink-0">
+                        <button onClick={() => { verFichaCliente(c); setVista('clientes') }}
+                          className="text-xs px-2.5 py-1.5 rounded-lg font-medium"
+                          style={{ border: `1px solid ${borde}`, color: textoSec }}>
+                          Ficha
+                        </button>
+                        <button onClick={() => darSello(c)} disabled={darSelloCliente === c.id}
+                          className="text-xs px-2.5 py-1.5 rounded-lg font-semibold disabled:opacity-40"
+                          style={{ background: boton, color: botonTexto }}>
+                          {darSelloCliente === c.id ? '...' : '⭐ Sello'}
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* Ranking top clientes */}
+            <p className="text-xs tracking-widest uppercase mb-3 font-semibold" style={{ color: textoSec }}>Top clientes más fieles</p>
+            <div className="rounded-xl mb-8" style={{ border: `1px solid ${borde}`, background: fondoClaro ? '#fff' : fondo }}>
+              {topClientes.length === 0 ? (
+                <p className="px-4 py-6 text-sm text-center" style={{ color: textoSec }}>Aún no hay clientes con canjes</p>
+              ) : topClientes.map((c: any, idx: number) => {
+                const nombre = [c.customers?.nombre, c.customers?.apellidos].filter(Boolean).join(' ') || c.customers?.email || 'Sin nombre'
+                const medallas = ['🥇','🥈','🥉','4️⃣','5️⃣']
+                return (
+                  <button key={c.id} onClick={() => { verFichaCliente(c); setVista('clientes') }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:opacity-80"
+                    style={{ borderBottom: idx < topClientes.length - 1 ? `1px solid ${bordeClaro}` : 'none' }}>
+                    <span className="text-xl flex-shrink-0">{medallas[idx]}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate" style={{ color: texto }}>{nombre}</p>
+                      <p className="text-xs" style={{ color: textoSec }}>{c.sellos_actuales} sellos · {c.total_canjes || 0} canjes</p>
+                    </div>
+                    <span className="text-xs flex-shrink-0" style={{ color: primario }}>Ver →</span>
+                  </button>
+                )
+              })}
+            </div>
+
+            </div>}
+
+            {/* ══ RESEÑAS GOOGLE ══ */}
+            {seccionMarketing === 'resenas' && <div>
+              <h3 className="text-lg font-bold mb-1" style={{ color: texto }}>Reseñas Google</h3>
+              <p className="text-sm mb-6" style={{ color: textoSec }}>Pide a tus clientes que te dejen una reseña en Google con un solo clic.</p>
+
+              {/* Configurar enlace */}
+              <div className="rounded-xl p-5 mb-4" style={{ border: `1px solid ${borde}`, background: fondoClaro ? '#fff' : fondo }}>
+                <p className="text-xs tracking-widest uppercase mb-3 font-semibold" style={{ color: textoSec }}>Tu enlace de Google</p>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={busquedaResena}
+                    onChange={e => setBusquedaResena(e.target.value)}
+                    placeholder="Pega aquí tu enlace de reseñas de Google…"
+                    className="flex-1 text-sm rounded-xl px-3 py-2 focus:outline-none"
+                    style={{ border: `1px solid ${borde}`, background: 'transparent', color: texto }}
+                  />
+                  <button
+                    onClick={async () => {
+                      if (!busquedaResena.trim()) return
+                      await supabase.from('restaurants').update({ google_review_url: busquedaResena.trim() }).eq('id', restaurante.id)
+                      setRestaurante((r: any) => ({ ...r, google_review_url: busquedaResena.trim() }))
+                    }}
+                    className="px-4 py-2 rounded-xl text-sm font-semibold"
+                    style={{ background: boton, color: botonTexto }}>
+                    Guardar
+                  </button>
+                </div>
+                <p className="text-xs" style={{ color: textoSec }}>
+                  Para obtener tu enlace: Google Maps → busca tu negocio → &quot;Pedir reseñas&quot; → copia el enlace
+                </p>
+              </div>
+
+              {/* Vista previa del mensaje */}
+              {(restaurante.google_review_url || busquedaResena) && (
+                <div className="rounded-xl p-5 mb-4" style={{ border: `1px solid ${borde}`, background: fondoClaro ? '#fff' : fondo }}>
+                  <p className="text-xs tracking-widest uppercase mb-3 font-semibold" style={{ color: textoSec }}>Vista previa del mensaje</p>
+                  <div className="rounded-xl p-4 text-sm" style={{ background: fondoClaro ? '#f0f2f5' : 'rgba(255,255,255,0.05)', color: texto }}>
+                    <p>Hola [nombre] 👋</p>
+                    <p className="mt-2">Gracias por confiar en <strong>{restaurante.nombre}</strong>. Si estás contento con nuestro servicio, nos ayudarías mucho dejando una reseña en Google. ¡Solo te lleva 1 minuto!</p>
+                    <p className="mt-2">👉 {restaurante.google_review_url || busquedaResena}</p>
+                    <p className="mt-2">¡Muchas gracias! 🙏</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Enviar a clientes */}
+              <div className="rounded-xl p-5 mb-4" style={{ border: `1px solid ${borde}`, background: fondoClaro ? '#fff' : fondo }}>
+                <p className="text-xs tracking-widest uppercase mb-3 font-semibold" style={{ color: textoSec }}>Enviar solicitud de reseña</p>
+                <p className="text-sm mb-4" style={{ color: textoSec }}>
+                  Envía el enlace de reseñas por WhatsApp a tus clientes con teléfono registrado.
+                </p>
+                <button
+                  onClick={async () => {
+                    const url = restaurante.google_review_url || busquedaResena
+                    if (!url) { alert('Primero guarda tu enlace de Google'); return }
+                    setEnviandoResena(true)
+                    const mensaje = `Hola [nombre] 👋\n\nGracias por confiar en ${restaurante.nombre}. Si estás contento con nuestro servicio, nos ayudarías mucho dejando una reseña en Google:\n\n👉 ${url}\n\n¡Muchas gracias! 🙏`
+                    const res = await fetch('/api/whatsapp-campaign', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ restaurant_id: restaurante.id, mensaje, filtros: null }),
+                    })
+                    const data = await res.json()
+                    setEnviandoResena(false)
+                    alert(`✅ Solicitud enviada a ${data.enviados} clientes`)
+                  }}
+                  disabled={enviandoResena || (!restaurante.google_review_url && !busquedaResena)}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50"
+                  style={{ background: '#25D366', color: '#fff' }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.122 1.532 5.858L0 24l6.305-1.654A11.932 11.932 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.87 0-3.618-.5-5.12-1.37l-.367-.217-3.812 1 1.017-3.71-.24-.38A9.96 9.96 0 0 1 2 12c0-5.514 4.486-10 10-10s10 4.486 10 10-4.486 10-10 10z"/></svg>
+                  {enviandoResena ? 'Enviando…' : `Enviar por WhatsApp (${clientesConTelefono.length})`}
+                </button>
+                <p className="text-xs mt-3" style={{ color: textoSec }}>
+                  Se enviará a los {clientesConTelefono.length} clientes con teléfono registrado.
+                </p>
+              </div>
+
+              {/* Consejos */}
+              <div className="rounded-xl p-5" style={{ border: `1px solid #fde68a`, background: fondoClaro ? '#fffbeb' : 'rgba(245,158,11,0.08)' }}>
+                <p className="text-sm font-semibold mb-2" style={{ color: '#92400e' }}>💡 Consejos para conseguir más reseñas</p>
+                <ul className="text-xs space-y-1.5" style={{ color: '#92400e' }}>
+                  <li>• Envía la solicitud justo después de que el cliente recoja su vehículo</li>
+                  <li>• Personaliza el mensaje mencionando el servicio realizado</li>
+                  <li>• No envíes la misma solicitud más de una vez por cliente</li>
+                  <li>• Las reseñas de 5 estrellas mejoran tu posicionamiento en Google Maps</li>
+                </ul>
+              </div>
+            </div>}
+
+            {/* ══ CAMPAÑAS ══ */}
+            {seccionMarketing === 'campanas' && <div>
+              <h3 className="text-lg font-bold mb-1" style={{ color: texto }}>Campañas</h3>
+              <p className="text-sm mb-6" style={{ color: textoSec }}>Envía mensajes masivos por WhatsApp o email a tus clientes.</p>
+
+              {/* WhatsApp masivo */}
+              <div className="rounded-xl p-5 mb-4" style={{ border: `1px solid ${borde}`, background: fondoClaro ? '#fff' : fondo }}>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-lg">💬</span>
+                  <p className="font-semibold text-sm" style={{ color: texto }}>Campaña WhatsApp</p>
+                </div>
+                <p className="text-xs mb-4" style={{ color: textoSec }}>{clientesConTelefono.length} clientes con teléfono disponibles.</p>
+
+                <div className="mb-3">
+                  <p className="text-xs tracking-widest uppercase mb-2" style={{ color: textoSec }}>Mensaje</p>
+                  <textarea
+                    value={waMensaje}
+                    onChange={e => setWaMensaje(e.target.value)}
+                    placeholder="Escribe tu mensaje… usa [nombre] para personalizar"
+                    rows={4}
+                    className="w-full text-sm resize-none rounded-xl px-3 py-2.5 focus:outline-none"
+                    style={{ border: `1px solid ${borde}`, background: 'transparent', color: texto }}
+                  />
+                  <p className="text-xs mt-1" style={{ color: textoSec }}>Variable: <span style={{ color: primario }}>[nombre]</span></p>
+                </div>
+
+                {/* Filtros */}
+                <div className="mb-4">
+                  <p className="text-xs tracking-widest uppercase mb-2" style={{ color: textoSec }}>Segmentar destinatarios</p>
+                  <div className="flex flex-wrap gap-2">
+                    {([
+                      { label: 'Todos', val: null },
+                      { label: 'Activos últimos 30 días', val: { actividad: 'activos', diasInactividad: 30 } },
+                      { label: 'Inactivos +60 días', val: { actividad: 'inactivos', diasInactividad: 60 } },
+                      { label: 'Con ≥5 sellos', val: { sellos: 'min_sellos', minSellos: 5 } },
+                    ] as const).map((op, i) => {
+                      const activo = JSON.stringify(waFiltros) === JSON.stringify(op.val)
+                      return (
+                        <button key={i} onClick={() => setWaFiltros(op.val as any)}
+                          className="text-xs px-3 py-1.5 rounded-lg font-medium"
+                          style={{ background: activo ? primario : 'transparent', color: activo ? botonTexto : textoSec, border: `1px solid ${activo ? primario : borde}` }}>
+                          {op.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <button
+                  onClick={async () => {
+                    if (!waMensaje.trim()) return
+                    setEnviandoWa(true)
+                    setResultadoWa(null)
+                    const res = await fetch('/api/whatsapp-campaign', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ restaurant_id: restaurante.id, mensaje: waMensaje, filtros: waFiltros }),
+                    })
+                    const data = await res.json()
+                    setResultadoWa(data)
+                    setEnviandoWa(false)
+                    if (!data.error) { setWaMensaje(''); recargarCampaigns() }
+                  }}
+                  disabled={enviandoWa || !waMensaje.trim()}
+                  className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
+                  style={{ background: '#25D366', color: '#fff' }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.122 1.532 5.858L0 24l6.305-1.654A11.932 11.932 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.87 0-3.618-.5-5.12-1.37l-.367-.217-3.812 1 1.017-3.71-.24-.38A9.96 9.96 0 0 1 2 12c0-5.514 4.486-10 10-10s10 4.486 10 10-4.486 10-10 10z"/></svg>
+                  {enviandoWa ? 'Enviando…' : 'Enviar campaña WhatsApp'}
+                </button>
+                {resultadoWa && (
+                  <div className="mt-3 rounded-xl px-4 py-3 text-sm" style={{ background: resultadoWa.error ? (fondoClaro ? '#fef2f2' : 'rgba(239,68,68,0.1)') : (fondoClaro ? '#f0fdf4' : 'rgba(34,197,94,0.1)'), color: resultadoWa.error ? '#ef4444' : '#22c55e' }}>
+                    {resultadoWa.error ? `❌ Error: ${resultadoWa.error}` : `✅ ${resultadoWa.enviados} mensajes enviados de ${resultadoWa.total}`}
+                  </div>
+                )}
+              </div>
+
+              {/* Email masivo */}
+              <div className="rounded-xl p-5 mb-4" style={{ border: `1px solid ${borde}`, background: fondoClaro ? '#fff' : fondo }}>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-lg">📧</span>
+                  <p className="font-semibold text-sm" style={{ color: texto }}>Campaña Email</p>
+                </div>
+                <p className="text-xs mb-4" style={{ color: textoSec }}>Envía newsletters y promociones con editor profesional.</p>
+                <CampaignCard
+                  restauranteId={restaurante.id}
+                  fondo={fondo} texto={texto} borde={borde} primario={primario}
+                  boton={boton} botonTexto={botonTexto} textoSec={textoSec}
+                  fondoClaro={fondoClaro} restaurante={restaurante}
+                  onEnviada={recargarCampaigns}
+                />
+              </div>
+
+              {/* Historial */}
+              {campaigns.length > 0 && (
+                <div className="mb-6">
+                  <p className="text-xs tracking-widest uppercase mb-3 font-semibold" style={{ color: textoSec }}>Historial de campañas</p>
+                  {campaigns.map((c: any) => {
+                    const estado = c.estado || 'enviada'
+                    const f = c.filtros
+                    let segDesc = 'Todos los clientes'
+                    if (f) {
+                      const parts: string[] = []
+                      if (f.actividad === 'activos') parts.push(`activos ${f.diasInactividad}d`)
+                      if (f.actividad === 'inactivos') parts.push(`inactivos +${f.diasInactividad}d`)
+                      if (f.sellos === 'min_sellos') parts.push(`≥${f.minSellos} sellos`)
+                      if (f.sellos === 'tarjeta_completa') parts.push('tarjeta completa')
+                      if (parts.length) segDesc = parts.join(' · ')
+                    }
+                    const badge = estado === 'programada'
+                      ? { label: 'Programada', color: '#f59e0b', bg: fondoClaro ? '#fffbeb' : 'rgba(245,158,11,0.1)' }
+                      : estado === 'error'
+                      ? { label: 'Error', color: '#ef4444', bg: fondoClaro ? '#fef2f2' : 'rgba(239,68,68,0.1)' }
+                      : { label: 'Enviada', color: '#22c55e', bg: fondoClaro ? '#f0fdf4' : 'rgba(34,197,94,0.1)' }
+                    const canal = c.canal === 'whatsapp' ? '💬' : '📧'
+                    return (
+                      <div key={c.id} className="rounded-xl mb-2 p-4" style={{ border: `1px solid ${borde}` }}>
+                        <div className="flex justify-between items-start gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <span>{canal}</span>
+                              <p className="text-sm font-medium truncate" style={{ color: texto }}>{c.asunto}</p>
+                              <span className="text-xs px-2 py-0.5 rounded-full flex-shrink-0 font-medium" style={{ color: badge.color, background: badge.bg }}>{badge.label}</span>
+                            </div>
+                            <p className="text-xs" style={{ color: textoSec }}>{segDesc} · {c.total_enviados ?? 0} enviados</p>
+                          </div>
+                          <p className="text-xs flex-shrink-0" style={{ color: textoSec }}>
+                            {c.creado_en ? new Date(c.creado_en).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }) : ''}
+                          </p>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* Emails automáticos */}
+              <p className="text-xs tracking-widest uppercase mb-4 font-semibold" style={{ color: textoSec }}>Emails automáticos</p>
+              {[
+                { tipo: 'recordatorio_reserva', label: 'Recordatorio 24h antes', desc: 'Se envía el día anterior a cada cita confirmada', asuntoDefault: 'Recordatorio: tu cita es mañana', cuerpoDefault: '<p>Hola <strong>[nombre]</strong>,</p><p>Te recordamos que mañana tienes una cita.</p><ul><li><strong>Servicio:</strong> [servicio]</li><li><strong>Fecha:</strong> [fecha]</li><li><strong>Hora:</strong> [hora]</li></ul><p>¡Te esperamos!</p>' },
+                { tipo: 'inactivos', label: 'Te echamos de menos', desc: 'Clientes que llevan tiempo sin visitarte', asuntoDefault: '¡Te echamos de menos!', cuerpoDefault: '<p>Hola <strong>[nombre]</strong>,</p><p>Llevamos un tiempo sin verte y te echamos de menos.</p><p>¡Esperamos verte pronto!</p>' },
+                { tipo: 'revision_vehiculo', label: 'Recordatorio revisión vehículo', desc: 'Aviso 7 días antes de la próxima revisión', asuntoDefault: 'Recordatorio: revisión de tu vehículo', cuerpoDefault: '<p>Hola <strong>[nombre]</strong>,</p><p>En 7 días vence la revisión de tu <strong>[marca] [modelo]</strong> ([matricula]).</p><p>Contacta con nosotros para reservar tu cita.</p>' },
+              ].map(({ tipo, label, desc, asuntoDefault, cuerpoDefault }) => (
+                <EmailConfigCard key={tipo} tipo={tipo} label={label} desc={desc}
+                  asuntoDefault={asuntoDefault} cuerpoDefault={cuerpoDefault}
+                  config={emailConfigs.find((c: any) => c.tipo === tipo)}
+                  onToggle={toggleEmailConfig} onGuardar={guardarPlantillaEmail}
+                  fondo={fondo} texto={texto} borde={borde} primario={primario}
+                  boton={boton} botonTexto={botonTexto} textoSec={textoSec}
+                  fondoClaro={fondoClaro} restaurante={restaurante}
+                />
+              ))}
+            </div>}
+          </>
+          )
+        })()}
+      {vista === 'ordenes' && (
         <>
-          <h2 className="text-2xl font-bold mb-6" style={{ color: texto }}>Comunidad</h2>
-          <div className="max-w-2xl">
-            <p className="text-xs tracking-widest uppercase mb-4" style={{ color: textoSec }}>Campañas manuales</p>
-            <CampaignCard
-              restauranteId={restaurante.id}
+          <h2 className="text-2xl font-bold mb-6" style={{ color: texto }}>Órdenes de reparación</h2>
+          <OrdenesTab
+            restaurante={restaurante}
+            fondo={fondo}
+            texto={texto}
+            borde={borde}
+            primario={primario}
+            boton={boton}
+            botonTexto={botonTexto}
+            textoSec={textoSec}
+            fondoClaro={fondoClaro}
+          />
+        </>
+      )}
+      {vista === 'presupuestos' && (
+        <>
+          <h2 className="text-2xl font-bold mb-6" style={{ color: texto }}>Presupuestos</h2>
+          <div className="max-w-3xl">
+            <PresupuestosTab
+              restaurante={restaurante}
               fondo={fondo}
               texto={texto}
               borde={borde}
@@ -1091,90 +1844,55 @@ export default function Dashboard() {
               botonTexto={botonTexto}
               textoSec={textoSec}
               fondoClaro={fondoClaro}
-              restaurante={restaurante}
-              onEnviada={recargarCampaigns}
             />
-            {campaigns.length > 0 && (
-              <div className="mb-6">
-                <p className="text-xs tracking-widest uppercase mb-3" style={{ color: textoSec }}>Historial de campañas</p>
-                {campaigns.map((c: any) => {
-                  const estado = c.estado || 'enviada'
-                  const f = c.filtros
-                  let segDesc = 'Todos los clientes'
-                  if (f) {
-                    const parts: string[] = []
-                    if (f.actividad === 'activos') parts.push(`activos ${f.diasInactividad}d`)
-                    if (f.actividad === 'inactivos') parts.push(`inactivos +${f.diasInactividad}d`)
-                    if (f.sellos === 'min_sellos') parts.push(`≥${f.minSellos} sellos`)
-                    if (f.sellos === 'tarjeta_completa') parts.push('tarjeta completa')
-                    if (f.vehiculo === 'con_vehiculo') parts.push('con vehículo')
-                    if (f.vehiculo === 'sin_vehiculo') parts.push('sin vehículo')
-                    if (f.vehiculo === 'revision_proxima') parts.push(`revisión ${f.diasRevision}d`)
-                    if (f.reservas === 'ha_reservado') parts.push('con reservas')
-                    if (f.reservas === 'nunca_reservado') parts.push('sin reservas')
-                    if (f.ciudad?.trim()) parts.push(f.ciudad.trim())
-                    segDesc = parts.length > 0 ? parts.join(' · ') : 'Todos los clientes'
-                  } else if (c.segmento) {
-                    segDesc = c.segmento === 'todos' ? 'Todos los clientes' : c.segmento === 'inactivos' ? 'Clientes inactivos' : 'Con vehículo'
-                  }
-                  const estadoBadge = estado === 'programada'
-                    ? { label: 'Programada', color: '#f59e0b', bg: fondoClaro ? '#fffbeb' : 'rgba(245,158,11,0.1)' }
-                    : estado === 'error'
-                    ? { label: 'Error', color: '#ef4444', bg: fondoClaro ? '#fef2f2' : 'rgba(239,68,68,0.1)' }
-                    : { label: 'Enviada', color: '#22c55e', bg: fondoClaro ? '#f0fdf4' : 'rgba(34,197,94,0.1)' }
-                  return (
-                    <div key={c.id} className="rounded-xl mb-2 p-4" style={{ border: `1px solid ${borde}` }}>
-                      <div className="flex justify-between items-start gap-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-0.5">
-                            <p className="text-sm font-medium truncate" style={{ color: texto }}>{c.asunto}</p>
-                            <span className="text-xs px-2 py-0.5 rounded-full flex-shrink-0 font-medium" style={{ color: estadoBadge.color, background: estadoBadge.bg }}>{estadoBadge.label}</span>
-                          </div>
-                          <p className="text-xs" style={{ color: textoSec }}>{segDesc}</p>
-                          {estado === 'programada' && c.programada_para ? (
-                            <p className="text-xs mt-0.5" style={{ color: textoSec }}>
-                              Envío: {new Date(c.programada_para).toLocaleString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                            </p>
-                          ) : (
-                            <p className="text-xs mt-0.5" style={{ color: textoSec }}>{c.total_enviados ?? 0} enviado{c.total_enviados !== 1 ? 's' : ''}</p>
-                          )}
-                        </div>
-                        <p className="text-xs flex-shrink-0" style={{ color: textoSec }}>
-                          {c.creado_en ? new Date(c.creado_en).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }) : ''}
-                        </p>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-            <p className="text-xs tracking-widest uppercase mb-4" style={{ color: textoSec }}>Emails automáticos</p>
-            {[
-              { tipo: 'recordatorio_reserva', label: 'Recordatorio 24h antes', desc: 'Se envía el día anterior a cada cita confirmada', asuntoDefault: 'Recordatorio: tu cita es mañana', cuerpoDefault: '<p>Hola <strong>[nombre]</strong>,</p><p>Te recordamos que mañana tienes una cita.</p><ul><li><strong>Servicio:</strong> [servicio]</li><li><strong>Fecha:</strong> [fecha]</li><li><strong>Hora:</strong> [hora]</li></ul><p>¡Te esperamos!</p>' },
-              { tipo: 'inactivos', label: 'Te echamos de menos', desc: 'Clientes que llevan tiempo sin visitarte', asuntoDefault: '¡Te echamos de menos!', cuerpoDefault: '<p>Hola <strong>[nombre]</strong>,</p><p>Llevamos un tiempo sin verte y te echamos de menos.</p><p>¡Esperamos verte pronto!</p>' },
-              { tipo: 'revision_vehiculo', label: 'Recordatorio revisión vehículo', desc: 'Aviso 7 días antes de la próxima revisión', asuntoDefault: 'Recordatorio: revisión de tu vehículo', cuerpoDefault: '<p>Hola <strong>[nombre]</strong>,</p><p>En 7 días vence la revisión de tu <strong>[marca] [modelo]</strong> ([matricula]).</p><p>Contacta con nosotros para reservar tu cita.</p>' },
-            ].map(({ tipo, label, desc, asuntoDefault, cuerpoDefault }) => (
-              <EmailConfigCard
-                key={tipo}
-                tipo={tipo}
-                label={label}
-                desc={desc}
-                asuntoDefault={asuntoDefault}
-                cuerpoDefault={cuerpoDefault}
-                config={emailConfigs.find((c: any) => c.tipo === tipo)}
-                onToggle={toggleEmailConfig}
-                onGuardar={guardarPlantillaEmail}
-                fondo={fondo}
-                texto={texto}
-                borde={borde}
-                primario={primario}
-                boton={boton}
-                botonTexto={botonTexto}
-                textoSec={textoSec}
-                fondoClaro={fondoClaro}
-                restaurante={restaurante}
-              />
-            ))}
+          </div>
+        </>
+      )}
+      {vista === 'estadisticas' && (
+        <>
+          <h2 className="text-2xl font-bold mb-6" style={{ color: texto }}>Estadísticas</h2>
+          <EstadisticasTab
+            restaurante={restaurante}
+            fondo={fondo}
+            texto={texto}
+            borde={borde}
+            primario={primario}
+            textoSec={textoSec}
+            fondoClaro={fondoClaro}
+          />
+        </>
+      )}
+      {vista === 'stock' && (
+        <>
+          <h2 className="text-2xl font-bold mb-6" style={{ color: texto }}>Stock</h2>
+          <StockTab
+            restaurante={restaurante}
+            fondo={fondo}
+            texto={texto}
+            borde={borde}
+            primario={primario}
+            boton={boton}
+            botonTexto={botonTexto}
+            textoSec={textoSec}
+            fondoClaro={fondoClaro}
+          />
+        </>
+      )}
+      {vista === 'facturas' && (
+        <>
+          <h2 className="text-2xl font-bold mb-6" style={{ color: texto }}>Facturas</h2>
+          <div className="max-w-2xl">
+            <FacturasTab
+              restaurante={restaurante}
+              fondo={fondo}
+              texto={texto}
+              borde={borde}
+              primario={primario}
+              boton={boton}
+              botonTexto={botonTexto}
+              textoSec={textoSec}
+              fondoClaro={fondoClaro}
+            />
           </div>
         </>
       )}
@@ -1182,7 +1900,258 @@ export default function Dashboard() {
         <>
           <h2 className="text-2xl font-bold mb-6" style={{ color: texto }}>Ajustes</h2>
           <div className="max-w-lg">
+
+            {/* Email remitente */}
+            <p className="text-xs tracking-widest uppercase mb-3" style={{ color: textoSec }}>Email remitente (Resend)</p>
+            <div className="rounded-xl p-4 mb-6" style={{ border: `1px solid ${borde}` }}>
+              <p className="text-xs mb-3" style={{ color: textoSec }}>
+                Si tienes un dominio verificado en Resend, los emails saldrán con tu dirección en lugar de noreply@zynalto.com
+              </p>
+              <div className="mb-3">
+                <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>Nombre del remitente</p>
+                <input type="text" value={resendFromName} onChange={e => setResendFromName(e.target.value)}
+                  placeholder={restaurante?.nombre || 'Mi Taller'}
+                  className="w-full bg-transparent rounded-xl px-3 py-2.5 focus:outline-none text-sm"
+                  style={{ border: `1px solid ${borde}`, color: texto }} />
+              </div>
+              <div>
+                <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>Email remitente</p>
+                <input type="email" value={resendFromEmail} onChange={e => setResendFromEmail(e.target.value)}
+                  placeholder="noreply@mitaller.es"
+                  className="w-full bg-transparent rounded-xl px-3 py-2.5 focus:outline-none text-sm"
+                  style={{ border: `1px solid ${borde}`, color: texto }} />
+              </div>
+            </div>
+
+            <p className="text-xs tracking-widest uppercase mb-3" style={{ color: textoSec }}>Portal del cliente</p>
+            <div className="rounded-xl p-4 mb-6 flex items-center justify-between gap-3" style={{ border: `1px solid ${borde}` }}>
+              <div className="min-w-0">
+                <p className="text-sm font-medium mb-0.5" style={{ color: texto }}>Enlace público para tus clientes</p>
+                <p className="text-xs truncate" style={{ color: textoSec }}>{typeof window !== 'undefined' ? `${window.location.origin}/portal/${restaurante?.slug}` : ''}</p>
+              </div>
+              <button
+                onClick={() => { if (typeof window !== 'undefined') { navigator.clipboard.writeText(`${window.location.origin}/portal/${restaurante?.slug}`); setMensaje('¡Enlace copiado!'); setTimeout(() => setMensaje(''), 2000) } }}
+                className="flex-shrink-0 text-xs px-3 py-2 rounded-lg font-medium"
+                style={{ background: boton, color: botonTexto }}
+              >
+                Copiar
+              </button>
+            </div>
+            <p className="text-xs tracking-widest uppercase mb-4" style={{ color: textoSec }}>Datos fiscales (facturas)</p>
+            <div className="rounded-xl p-4 mb-6" style={{ border: `1px solid ${borde}` }}>
+              {[
+                { label: 'NIF / CIF', val: nif, set: setNif, placeholder: 'B12345678' },
+                { label: 'Dirección fiscal', val: direccionFiscal, set: setDireccionFiscal, placeholder: 'Calle Mayor 1' },
+                { label: 'Código postal', val: cpFiscal, set: setCpFiscal, placeholder: '28001' },
+                { label: 'Ciudad', val: ciudadFiscal, set: setCiudadFiscal, placeholder: 'Madrid' },
+                { label: 'Provincia', val: provincia, set: setProvincia, placeholder: 'Madrid' },
+                { label: 'Serie de facturación', val: serieFact, set: setSerieFact, placeholder: 'A' },
+              ].map(f => (
+                <div key={f.label} className="mb-3">
+                  <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>{f.label}</p>
+                  <input type="text" value={f.val} onChange={e => f.set(e.target.value)} placeholder={f.placeholder}
+                    className="w-full bg-transparent rounded-xl px-3 py-2.5 focus:outline-none text-sm"
+                    style={{ border: `1px solid ${borde}`, color: texto }} />
+                </div>
+              ))}
+            </div>
+            <p className="text-xs tracking-widest uppercase mb-3" style={{ color: textoSec }}>Notificaciones al cliente</p>
+            <div className="rounded-xl p-4 mb-6" style={{ border: `1px solid ${borde}` }}>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-sm font-medium" style={{ color: texto }}>Email al cambiar estado de la orden</p>
+                  <p className="text-xs mt-0.5" style={{ color: textoSec }}>El cliente recibe un email cuando su vehículo pasa a diagnóstico, reparación, terminado…</p>
+                </div>
+                <button
+                  onClick={() => setNotifEstadoActivo(!notifEstadoActivo)}
+                  className="relative w-11 h-6 rounded-full transition-colors flex-shrink-0"
+                  style={{ background: notifEstadoActivo ? primario : borde }}>
+                  <span className="absolute top-0.5 transition-all w-5 h-5 rounded-full bg-white shadow"
+                    style={{ left: notifEstadoActivo ? '22px' : '2px' }} />
+                </button>
+              </div>
+              <div className="flex items-center justify-between pt-3" style={{ borderTop: `1px solid ${borde}` }}>
+                <div>
+                  <p className="text-sm font-medium" style={{ color: texto }}>WhatsApp al cambiar estado</p>
+                  <p className="text-xs mt-0.5" style={{ color: textoSec }}>Requiere configurar Twilio (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM)</p>
+                </div>
+                <button
+                  onClick={() => setNotifWhatsappActivo(!notifWhatsappActivo)}
+                  className="relative w-11 h-6 rounded-full transition-colors flex-shrink-0"
+                  style={{ background: notifWhatsappActivo ? '#25D366' : borde }}>
+                  <span className="absolute top-0.5 transition-all w-5 h-5 rounded-full bg-white shadow"
+                    style={{ left: notifWhatsappActivo ? '22px' : '2px' }} />
+                </button>
+              </div>
+            </div>
+            <p className="text-xs tracking-widest uppercase mb-3" style={{ color: textoSec }}>Recordatorios automáticos</p>
+            <div className="rounded-xl p-4 mb-6" style={{ border: `1px solid ${borde}` }}>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-sm font-medium" style={{ color: texto }}>Activar recordatorios</p>
+                  <p className="text-xs mt-0.5" style={{ color: textoSec }}>Envío automático por email de ITV y mantenimiento</p>
+                </div>
+                <button
+                  onClick={() => setRecordatoriosActivos(!recordatoriosActivos)}
+                  className="relative w-11 h-6 rounded-full transition-colors flex-shrink-0"
+                  style={{ background: recordatoriosActivos ? primario : borde }}
+                >
+                  <span className="absolute top-0.5 transition-all w-5 h-5 rounded-full bg-white shadow"
+                    style={{ left: recordatoriosActivos ? '22px' : '2px' }} />
+                </button>
+              </div>
+              {recordatoriosActivos && (
+                <div className="space-y-3 pt-3" style={{ borderTop: `1px solid ${borde}` }}>
+                  <div>
+                    <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>Avisar de ITV con X días de antelación</p>
+                    <div className="flex items-center gap-2">
+                      <input type="number" min="7" max="90" value={recordatorioItvDias} onChange={e => setRecordatorioItvDias(e.target.value)}
+                        className="w-24 bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm"
+                        style={{ border: `1px solid ${borde}`, color: texto }} />
+                      <span className="text-sm" style={{ color: textoSec }}>días</span>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>Avisar de mantenimiento cuando falten X km</p>
+                    <div className="flex items-center gap-2">
+                      <input type="number" min="100" max="5000" step="100" value={recordatorioMantKm} onChange={e => setRecordatorioMantKm(e.target.value)}
+                        className="w-24 bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm"
+                        style={{ border: `1px solid ${borde}`, color: texto }} />
+                      <span className="text-sm" style={{ color: textoSec }}>km</span>
+                    </div>
+                  </div>
+                  <p className="text-xs pt-1" style={{ color: textoSec }}>
+                    💡 Los emails se envían diariamente a las 9:00h. No se repiten en 20 días para el mismo vehículo.
+                  </p>
+                </div>
+              )}
+            </div>
+            {/* Valoración post-entrega */}
+            <p className="text-xs tracking-widest uppercase mb-3" style={{ color: textoSec }}>Valoración post-entrega</p>
+            <div className="rounded-xl p-4 mb-6" style={{ border: `1px solid ${borde}` }}>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-sm font-medium" style={{ color: texto }}>Email de reseña al entregar el vehículo</p>
+                  <p className="text-xs mt-0.5" style={{ color: textoSec }}>Cuando la orden pasa a "Entregado", el cliente recibe un email pidiendo valoración</p>
+                </div>
+                <button
+                  onClick={() => setNotifValoracionActivo(!notifValoracionActivo)}
+                  className="relative w-11 h-6 rounded-full transition-colors flex-shrink-0"
+                  style={{ background: notifValoracionActivo ? '#f59e0b' : borde }}>
+                  <span className="absolute top-0.5 transition-all w-5 h-5 rounded-full bg-white shadow"
+                    style={{ left: notifValoracionActivo ? '22px' : '2px' }} />
+                </button>
+              </div>
+              {notifValoracionActivo && (
+                <div style={{ borderTop: `1px solid ${borde}`, paddingTop: 12 }}>
+                  <p className="text-xs mb-1" style={{ color: textoSec }}>Enlace a Google Maps / Reseñas (opcional)</p>
+                  <input
+                    type="url"
+                    value={googleMapsUrl}
+                    onChange={e => setGoogleMapsUrl(e.target.value)}
+                    placeholder="https://g.page/r/tu-negocio/review"
+                    className="w-full bg-transparent rounded-xl px-3 py-2 focus:outline-none text-sm"
+                    style={{ border: `1px solid ${borde}`, color: texto }}
+                  />
+                  <p className="text-xs mt-1.5" style={{ color: textoSec }}>Busca tu enlace en Google Maps → tu negocio → "Pedir reseñas"</p>
+                </div>
+              )}
+            </div>
+
+            {/* Datos del negocio */}
+            <p className="text-xs tracking-widest uppercase mb-3" style={{ color: textoSec }}>Datos del negocio</p>
+            <div className="rounded-xl p-4 mb-6" style={{ border: `1px solid ${borde}` }}>
+              {[
+                { label: 'Teléfono', val: telefonoNegocio, set: setTelefonoNegocio, placeholder: '912 345 678', type: 'tel' },
+                { label: 'Dirección', val: direccionNegocio, set: setDireccionNegocio, placeholder: 'Calle Mayor 1, 28001 Madrid', type: 'text' },
+                { label: 'Web', val: webNegocio, set: setWebNegocio, placeholder: 'https://www.mitaller.es', type: 'url' },
+              ].map(f => (
+                <div key={f.label} className="mb-3">
+                  <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>{f.label}</p>
+                  <input type={f.type} value={f.val} onChange={e => f.set(e.target.value)} placeholder={f.placeholder}
+                    className="w-full bg-transparent rounded-xl px-3 py-2.5 focus:outline-none text-sm"
+                    style={{ border: `1px solid ${borde}`, color: texto }} />
+                </div>
+              ))}
+            </div>
+
             <div className="mb-6">
+            {/* Catálogo de servicios */}
+            <p className="text-xs tracking-widest uppercase mb-3" style={{ color: textoSec }}>Catálogo de servicios</p>
+            <div className="rounded-xl p-4 mb-6" style={{ border: `1px solid ${borde}` }}>
+              <p className="text-xs mb-3" style={{ color: textoSec }}>Los servicios del catálogo aparecen como sugerencias al crear presupuestos, agilizando el proceso.</p>
+              {creandoCatalogo && (
+                <div className="mb-4 rounded-xl p-3" style={{ background: fondoClaro ? '#f8fafc' : 'rgba(255,255,255,0.04)', border: `1px solid ${borde}` }}>
+                  <div className="grid grid-cols-2 gap-2 mb-2">
+                    <div className="col-span-2">
+                      <p className="text-xs mb-1" style={{ color: textoSec }}>Nombre *</p>
+                      <input type="text" value={catalogoForm.nombre} onChange={e => setCatalogoForm(f => ({ ...f, nombre: e.target.value }))}
+                        placeholder="Ej: Cambio de aceite"
+                        className="w-full bg-transparent rounded-lg px-3 py-2 text-sm focus:outline-none"
+                        style={{ border: `1px solid ${borde}`, color: texto }} />
+                    </div>
+                    <div>
+                      <p className="text-xs mb-1" style={{ color: textoSec }}>Precio (€)</p>
+                      <input type="number" step="0.01" value={catalogoForm.precio} onChange={e => setCatalogoForm(f => ({ ...f, precio: e.target.value }))}
+                        placeholder="0.00"
+                        className="w-full bg-transparent rounded-lg px-3 py-2 text-sm focus:outline-none"
+                        style={{ border: `1px solid ${borde}`, color: texto }} />
+                    </div>
+                    <div>
+                      <p className="text-xs mb-1" style={{ color: textoSec }}>IVA %</p>
+                      <select value={catalogoForm.tipo_iva} onChange={e => setCatalogoForm(f => ({ ...f, tipo_iva: e.target.value }))}
+                        className="w-full bg-transparent rounded-lg px-3 py-2 text-sm focus:outline-none"
+                        style={{ border: `1px solid ${borde}`, color: texto }}>
+                        {['0','4','10','21'].map(v => <option key={v} value={v}>{v}%</option>)}
+                      </select>
+                    </div>
+                    <div className="col-span-2">
+                      <p className="text-xs mb-1" style={{ color: textoSec }}>Descripción</p>
+                      <input type="text" value={catalogoForm.descripcion} onChange={e => setCatalogoForm(f => ({ ...f, descripcion: e.target.value }))}
+                        placeholder="Descripción opcional"
+                        className="w-full bg-transparent rounded-lg px-3 py-2 text-sm focus:outline-none"
+                        style={{ border: `1px solid ${borde}`, color: texto }} />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => setCreandoCatalogo(false)} className="flex-1 py-1.5 rounded-lg text-xs" style={{ border: `1px solid ${borde}`, color: textoSec }}>Cancelar</button>
+                    <button
+                      disabled={!catalogoForm.nombre}
+                      onClick={async () => {
+                        const res = await fetch('/api/catalogo', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ restaurant_id: restaurante.id, ...catalogoForm, precio: catalogoForm.precio ? Number(catalogoForm.precio) : null, tipo_iva: Number(catalogoForm.tipo_iva) }),
+                        })
+                        const data = await res.json()
+                        if (res.ok) { setCatalogo(prev => [...prev, data].sort((a, b) => a.nombre.localeCompare(b.nombre))); setCreandoCatalogo(false); setCatalogoForm({ nombre: '', descripcion: '', precio: '', tipo_iva: '21', categoria: '' }) }
+                      }}
+                      className="flex-1 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-40"
+                      style={{ background: boton, color: botonTexto }}>
+                      Guardar
+                    </button>
+                  </div>
+                </div>
+              )}
+              {catalogo.length === 0 && !creandoCatalogo && (
+                <p className="text-sm mb-3" style={{ color: textoSec }}>Sin servicios en el catálogo todavía</p>
+              )}
+              {catalogo.map(s => (
+                <div key={s.id} className="flex items-center justify-between py-2" style={{ borderBottom: `1px solid ${borde}` }}>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium" style={{ color: texto }}>{s.nombre}</p>
+                    {s.descripcion && <p className="text-xs" style={{ color: textoSec }}>{s.descripcion}</p>}
+                  </div>
+                  <div className="flex items-center gap-3 flex-shrink-0 ml-2">
+                    {s.precio && <span className="text-sm font-semibold" style={{ color: primario }}>{Number(s.precio).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>}
+                    <span className="text-xs" style={{ color: textoSec }}>{s.tipo_iva}% IVA</span>
+                    <button onClick={async () => { await fetch(`/api/catalogo?id=${s.id}`, { method: 'DELETE' }); setCatalogo(prev => prev.filter(x => x.id !== s.id)) }} className="text-xs" style={{ color: '#ef4444' }}>🗑</button>
+                  </div>
+                </div>
+              ))}
+              <button onClick={() => setCreandoCatalogo(true)} className="mt-3 text-xs font-medium" style={{ color: primario }}>+ Añadir servicio</button>
+            </div>
+
               <p className="text-xs tracking-widest uppercase mb-3" style={{ color: textoSec }}>PIN para dar sello</p>
               <input type="number" value={nuevoPin} onChange={(e) => setNuevoPin(e.target.value)} className="w-full bg-transparent rounded-xl px-4 py-4 focus:outline-none" style={{ border: `1px solid ${borde}`, color: texto }} />
             </div>
@@ -1284,39 +2253,117 @@ export default function Dashboard() {
     </div>
   )
 
+  const buscarProps = {
+    restaurante, primario, fondo, texto, borde, textoSec, fondoClaro,
+    onVerOrden: () => setVista('ordenes'),
+    onVerCliente: () => setVista('clientes'),
+    onVerPresupuesto: () => setVista('presupuestos'),
+  }
+
+  // Tabs que caben en el bottom nav móvil (los más usados)
+  const tabsMobile = tabs.filter(t => ['inicio','ordenes','reservas','stock','ajustes'].includes(t.key))
+
   return (
     <div className="min-h-screen flex" style={{ background: fondo }}>
-      <aside className="hidden md:flex flex-col w-56 min-h-screen p-6 flex-shrink-0" style={{ background: fondoSidebar, borderRight: `1px solid ${borde}` }}>
-        <div className="mb-8">
-          {restaurante.logo_url && <img src={restaurante.logo_url} alt={restaurante.nombre} className="h-10 object-contain mb-4" />}
-          <p className="text-xs tracking-widest uppercase mb-1" style={{ color: textoSec }}>Dashboard</p>
-          <p className="font-bold text-sm leading-tight" style={{ color: texto }}>{restaurante.nombre}</p>
+
+      {/* ── SIDEBAR DESKTOP ── */}
+      <aside className="hidden md:flex flex-col w-64 min-h-screen flex-shrink-0 sticky top-0 h-screen"
+        style={{ background: fondoSidebar, borderRight: `1px solid ${borde}` }}>
+
+        {/* Logo + nombre */}
+        <div className="px-5 pt-6 pb-4" style={{ borderBottom: `1px solid ${borde}` }}>
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="h-9 w-9 rounded-xl flex items-center justify-center flex-shrink-0 text-base font-bold" style={{ background: primario, color: botonTexto }}>
+              {restaurante.nombre?.[0]?.toUpperCase() || '?'}
+            </div>
+            <div className="min-w-0">
+              <p className="font-bold text-sm leading-tight truncate" style={{ color: texto }}>{restaurante.nombre}</p>
+              <p className="text-xs mt-0.5" style={{ color: textoSec }}>Dashboard</p>
+            </div>
+          </div>
         </div>
-        <nav className="flex-1">
-          {tabs.map(t => (
-            <button key={t.key} onClick={() => { setVista(t.key as any); setClienteSeleccionado(null); setVehiculoSeleccionado(null) }}
-              className="w-full text-left px-3 py-3 rounded-xl mb-1 flex items-center gap-3 text-sm transition-colors"
-              style={{ background: vista === t.key ? primario : 'transparent', color: vista === t.key ? botonTexto : textoSec }}>
-              <span>{t.icon}</span>
-              <span>{t.label}</span>
-            </button>
-          ))}
+
+        {/* Buscador */}
+        <div className="px-3 py-3" style={{ borderBottom: `1px solid ${borde}` }}>
+          <BuscadorGlobal {...buscarProps} />
+        </div>
+
+        {/* Nav */}
+        <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
+          {tabs.map(t => {
+            const activo = vista === t.key
+            const badgeCitas = t.key === 'reservas' && citasPendientes.length > 0
+            const badgeBloqueos = t.key === 'ordenes' && ordenesResumen.bloqueadas > 0
+            return (
+              <button
+                key={t.key}
+                onClick={() => { setVista(t.key as any); setClienteSeleccionado(null); setVehiculoSeleccionado(null) }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all"
+                style={{
+                  background: activo ? primario : 'transparent',
+                  color: activo ? botonTexto : textoSec,
+                }}>
+                <span className="text-base leading-none">{t.icon}</span>
+                <span className="flex-1 text-left">{t.label}</span>
+                {badgeCitas && <span className="text-xs font-bold px-1.5 py-0.5 rounded-full flex-shrink-0" style={{ background: '#fde047', color: '#713f12' }}>{citasPendientes.length}</span>}
+                {badgeBloqueos && <span className="text-xs font-bold px-1.5 py-0.5 rounded-full flex-shrink-0" style={{ background: '#fecaca', color: '#b91c1c' }}>{ordenesResumen.bloqueadas}</span>}
+              </button>
+            )
+          })}
         </nav>
-        <button onClick={() => supabase.auth.signOut().then(() => router.push('/dashboard/login'))} className="text-xs tracking-widest uppercase text-left px-3 py-2" style={{ color: textoSec }}>
-          Cerrar sesión
-        </button>
-      </aside>
-      {contenido}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 flex" style={{ background: fondo, borderTop: `1px solid ${borde}` }}>
-        {tabs.map(t => (
-          <button key={t.key} onClick={() => { setVista(t.key as any); setClienteSeleccionado(null); setVehiculoSeleccionado(null) }}
-            className="flex-1 py-3 flex flex-col items-center gap-1"
-            style={{ color: vista === t.key ? primario : textoSec }}>
-            <span className="text-lg">{t.icon}</span>
-            <span className="text-xs">{t.label}</span>
+
+        {/* Footer */}
+        <div className="px-3 pb-5 pt-3" style={{ borderTop: `1px solid ${borde}` }}>
+          <button
+            onClick={() => supabase.auth.signOut().then(() => router.push('/dashboard/login'))}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all hover:opacity-70"
+            style={{ color: textoSec }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Cerrar sesión
           </button>
-        ))}
+        </div>
+      </aside>
+
+      {/* ── CONTENIDO PRINCIPAL ── */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Top bar móvil */}
+        <header className="md:hidden sticky top-0 z-10 flex items-center gap-3 px-4 py-3" style={{ background: fondoSidebar, borderBottom: `1px solid ${borde}` }}>
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <div className="h-7 w-7 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-bold" style={{ background: primario, color: botonTexto }}>{restaurante.nombre?.[0]?.toUpperCase()}</div>
+            <p className="font-bold text-sm truncate" style={{ color: texto }}>{restaurante.nombre}</p>
+          </div>
+          <BuscadorGlobal {...buscarProps} />
+        </header>
+
+        {/* Vista actual */}
+        <main className="flex-1 pb-24 md:pb-0">
+          {contenido}
+        </main>
+      </div>
+
+      {/* ── SOPORTE ── */}
+      <SoporteChat restaurante={restaurante} />
+
+      {/* ── BOTTOM NAV MÓVIL ── */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-10 flex" style={{ background: fondoSidebar, borderTop: `1px solid ${borde}` }}>
+        {tabsMobile.map(t => {
+          const activo = vista === t.key
+          return (
+            <button
+              key={t.key}
+              onClick={() => { setVista(t.key as any); setClienteSeleccionado(null); setVehiculoSeleccionado(null) }}
+              className="flex-1 py-2.5 flex flex-col items-center gap-0.5 relative"
+              style={{ color: activo ? primario : textoSec }}>
+              <span className="text-xl leading-none">{t.icon}</span>
+              <span className="text-[10px] font-medium">{t.label}</span>
+              {t.key === 'reservas' && citasPendientes.length > 0 && (
+                <span className="absolute top-1.5 right-1/4 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center" style={{ background: '#f59e0b', color: '#fff' }}>{citasPendientes.length}</span>
+              )}
+            </button>
+          )
+        })}
       </nav>
+
     </div>
   )
 }

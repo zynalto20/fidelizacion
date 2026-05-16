@@ -79,6 +79,7 @@ export default function EmailConfigCard({ tipo, label, desc, asuntoDefault, cuer
                 texto={texto}
                 borde={borde}
                 primario={primario}
+                negocio={restaurante?.nombre || ''}
               />
               <p className="text-xs mt-2" style={{ color: textoSec }}>
                 Variables: <span style={{ color: primario }}>[nombre]</span> <span style={{ color: primario }}>[servicio]</span> <span style={{ color: primario }}>[fecha]</span> <span style={{ color: primario }}>[hora]</span> <span style={{ color: primario }}>[marca]</span> <span style={{ color: primario }}>[modelo]</span> <span style={{ color: primario }}>[matricula]</span>

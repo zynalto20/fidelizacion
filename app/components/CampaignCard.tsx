@@ -310,7 +310,7 @@ export default function CampaignCard({
 
             <div>
               <p className="text-xs mb-1.5" style={{ color: textoSec }}>Cuerpo</p>
-              <EmailEditor content={cuerpo} onChange={setCuerpo} fondo={fondo} texto={texto} borde={borde} primario={primario} />
+              <EmailEditor content={cuerpo} onChange={setCuerpo} fondo={fondo} texto={texto} borde={borde} primario={primario} negocio={restaurante?.nombre || ''} />
               <p className="text-xs mt-1.5" style={{ color: textoSec }}>
                 Variable: <span style={{ color: primario }}>[nombre]</span>
               </p>
